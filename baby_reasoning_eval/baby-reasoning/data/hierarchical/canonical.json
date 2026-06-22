@@ -1,0 +1,55 @@
+[
+  {
+    "query": "AABB",
+    "expected": "1",
+    "few_shot_examples": [
+      ["CCDD", "1"],
+      ["EFGH", "1"],
+      ["IJKK", "0"]
+    ],
+    "metadata": {
+      "pattern": "same-same",
+      "source": "Marcus 2001 / Geiger 2022"
+    }
+  },
+  {
+    "query": "LLMN",
+    "expected": "0",
+    "few_shot_examples": [
+      ["OOPP", "1"],
+      ["QRST", "1"],
+      ["UUVW", "0"]
+    ],
+    "metadata": {
+      "pattern": "same-different",
+      "source": "Marcus 2001 / Geiger 2022"
+    }
+  },
+  {
+    "query": "XYZA",
+    "expected": "1",
+    "few_shot_examples": [
+      ["BBCC", "1"],
+      ["DEFG", "1"],
+      ["HIJJ", "0"]
+    ],
+    "metadata": {
+      "pattern": "different-different",
+      "source": "Marcus 2001 / Geiger 2022"
+    }
+  },
+  {
+    "query": "KLMM",
+    "expected": "0",
+    "few_shot_examples": [
+      ["NNOP", "0"],
+      ["QRSS", "0"],
+      ["TTUV", "0"]
+    ],
+    "metadata": {
+      "pattern": "same-different",
+      "source": "Marcus 2001 / Geiger 2022",
+      "note": "different-same ordering: pair1 is different, pair2 is same"
+    }
+  }
+]

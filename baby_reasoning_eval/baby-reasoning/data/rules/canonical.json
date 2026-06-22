@@ -1,0 +1,32 @@
+[
+  {
+    "query": "ba po",
+    "expected": "po",
+    "answer_choices": ["ba", "po"],
+    "few_shot_examples": [
+      ["ga ti", "ti"],
+      ["li na", "na"],
+      ["ta da", "da"]
+    ],
+    "metadata": {
+      "rule": "ABB",
+      "source": "Marcus 1999",
+      "note": "Test syllables ba/po are novel relative to few-shot syllables ga/ti/li/na/ta/da"
+    }
+  },
+  {
+    "query": "ba po",
+    "expected": "ba",
+    "answer_choices": ["ba", "po"],
+    "few_shot_examples": [
+      ["ga ti", "ga"],
+      ["li na", "li"],
+      ["ta da", "ta"]
+    ],
+    "metadata": {
+      "rule": "ABA",
+      "source": "Marcus 1999",
+      "note": "Test syllables ba/po are novel relative to few-shot syllables ga/ti/li/na/ta/da"
+    }
+  }
+]
