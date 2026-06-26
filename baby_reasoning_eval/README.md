@@ -90,17 +90,18 @@ uv run script/run \
 | `--ollama-timeout` | Seconds per Ollama request (default 300). |
 | `--ollama-max-tokens` | `num_predict` for Ollama (default 64). |
 | `--n-examples` | In-context demos prepended from `ravens_prompts.IN_CONTEXT_EXAMPLES` (`0` = none, `1` = one, `3` = all three). |
+| `--ravens-prompt-type` | `instruction` (letter MCQ; default) or `completion` (bracket fill-in, benpry/baby-reasoning style). |
 
-Results are written under **`baby-reasoning/results/`**.
+Results are written under **`baby-reasoning/results/`**. Completion runs use `{n}_examples_completion.json`; instruction runs use `{n}_examples.json`.
 
 ## Prompting and scoring
 
-- Prompts match **`evaluate.py` plain mode** (letter **A–D**).
-- Scoring uses **`ravens_answer_parse.parse_answer`**.
+- **`instruction`** (default): prompts match **`evaluate.py` plain mode** (letter **A–D**); scoring uses **`ravens_answer_parse.parse_answer`**.
+- **`completion`**: bracketed 3×3 grid ending in `[` (same format as benpry **`matrix_easy`**); model fills the blank cell; same 120 tasks and answer options; scoring compares text before `]` to the correct option value (`combine` / `intersection` are set-wise).
 
 ## Modal (Option A: vLLM inside GPU container)
 
-[`modal_eval.py`](modal_eval.py) runs **`ravens_numerical`** on Modal with **`vllm serve`** started in the same container, then **`script/run --backend vllm`**. Use this for **Pythia vs Qwen3** on CUDA without local vLLM on macOS.
+[`modal_eval.py`](modal_eval.py) runs **`ravens_numerical`** on Modal with **`vllm serve`** started in the same container, then **`script/run --backend vllm`**. Use this for **Pythia vs Qwen3 scaling** on CUDA without local vLLM on macOS.
 
 One-time:
 
@@ -111,29 +112,77 @@ modal setup
 
 From the **ravens-numerical-tasks repo root**:
 
+### `--models` (single flag for one or many HF ids)
+
+| Value | Meaning |
+|-------|---------|
+| `EleutherAI/pythia-70m-deduped` | One model |
+| `id1,id2,...` | Comma-separated list, run each sequentially |
+| `sweep` | Full scaling ladder (8 Pythia + 5 Qwen3 from [`ravens_eval_models.py`](../ravens_eval_models.py)) |
+| `pythia` | Pythia subset only |
+| `qwen3` | Qwen3 subset only |
+
 ```bash
-# Full eval (120 tasks; appends to baby_reasoning_eval/experiments.md)
-modal run baby_reasoning_eval/modal_eval.py --model both
-modal run baby_reasoning_eval/modal_eval.py --model both --n-examples 3
+# Smoke test (10 tasks, one small model)
+modal run baby_reasoning_eval/modal_eval.py \
+  --max-tasks 10 --models EleutherAI/pythia-70m-deduped --n-examples 0
 
-# Smoke test (10 tasks)
-modal run baby_reasoning_eval/modal_eval.py --max-tasks 10 --model both
+# Full scaling ladder (120 tasks; logs each model to experiments.md)
+modal run baby_reasoning_eval/modal_eval.py --models sweep --n-examples 0
 
-# Direct remote functions (no experiments.md update)
+# Same ladder with completion-style prompts (benpry / matrix_easy format)
+modal run baby_reasoning_eval/modal_eval.py --models sweep --n-examples 1 --prompt-type completion
+
+# Instruction + completion per model (one vLLM load each; two experiment log entries)
+modal run baby_reasoning_eval/modal_eval.py --models sweep --n-examples 1 --prompt-type both
+
+# Instruction vs completion on one model
+modal run baby_reasoning_eval/modal_eval.py \
+  --models EleutherAI/pythia-410m-deduped --n-examples 1 --prompt-type instruction
+modal run baby_reasoning_eval/modal_eval.py \
+  --models EleutherAI/pythia-410m-deduped --n-examples 1 --prompt-type completion
+
+# Two specific sizes
+modal run baby_reasoning_eval/modal_eval.py \
+  --models EleutherAI/pythia-410m-deduped,Qwen/Qwen3-4B --n-examples 0
+
+# Optional: ICL on full ladder
+modal run baby_reasoning_eval/modal_eval.py --models sweep --n-examples 3
+```
+
+Use `--n-examples 0` (zero-shot), `1` (one ICL demo), or `3` (all three demos).
+
+| Flag | Values |
+|------|--------|
+| `--prompt-type` | `instruction` (default), `completion`, or `both` (instruction then completion per model, one vLLM load) |
+
+Successful runs via the **entrypoint** (without `::`) append accuracy to [`experiments.md`](experiments.md).
+
+GPU tier is chosen per model (`T4` for ≤1.4B, `A10G` for mid-size, `A100` for ≥10B such as Pythia-12B and Qwen3-14B); see `MODEL_GPU_TIER` in [`ravens_eval_models.py`](../ravens_eval_models.py). HF weights are cached on Modal volume **`ravens-hf-cache`**. Decoding uses **`temperature=0`** via vLLM.
+
+Legacy direct remote functions (no `experiments.md` update):
+
+```bash
 modal run baby_reasoning_eval/modal_eval.py::run_compare_ravens --max-tasks 10
 modal run baby_reasoning_eval/modal_eval.py::run_pythia_ravens --max-tasks 10
 modal run baby_reasoning_eval/modal_eval.py::run_qwen3_ravens --max-tasks 10
 ```
 
-Use ``--n-examples 0`` (zero-shot), ``1`` (one ICL demo), or ``3`` (all three demos).
+### Aggregate scaling results
 
-Successful runs via the **entrypoint** (without ``::``) append accuracy to [`experiments.md`](experiments.md).
+After local or Modal runs, JSON lives under **`baby-reasoning/results/`**. Combine into CSV + markdown:
 
 ```bash
-# Full eval + experiment log
-modal run baby_reasoning_eval/modal_eval.py --model both
-modal run baby_reasoning_eval/modal_eval.py --model pythia
-modal run baby_reasoning_eval/modal_eval.py --model qwen3
+python baby_reasoning_eval/aggregate_results.py
+# → baby_reasoning_eval/scaling_results.csv
+# → baby_reasoning_eval/scaling_results.md
 ```
 
-Defaults: **`EleutherAI/pythia-70m-deduped`** (T4 GPU) and **`Qwen/Qwen3-8B`** (A10G GPU). Override with `--model-id` on each function. HF weights are cached on Modal volume **`ravens-hf-cache`**.
+### Evaluation protocol (scaling)
+
+| Setting | Recommended |
+|---------|-------------|
+| Tasks | All 120 (omit `--max-tasks` for real numbers) |
+| `n_examples` | `0` primary; `3` optional for ICL |
+| Backend | Modal + vLLM + HF ids (both families) |
+| Chance baseline | 25% (4-way MCQ; computed in aggregate output) |

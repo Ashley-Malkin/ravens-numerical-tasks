@@ -1,4 +1,4 @@
-"""Raven's numerical tasks from ravens-numerical-tasks ``tasks.json`` (plain letter prompts)."""
+"""Raven's numerical tasks from ravens-numerical-tasks ``tasks.json``."""
 
 from __future__ import annotations
 
@@ -6,9 +6,11 @@ import json
 import random
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from baby_reasoning.tasks.base import ModelResponse, Stimulus, Task
+
+PromptType = Literal["instruction", "completion"]
 
 
 def _default_ravens_repo_root() -> Path:
@@ -18,7 +20,7 @@ def _default_ravens_repo_root() -> Path:
 
 
 class RavensNumericalTask(Task):
-    """Loads tasks from JSON; prompts match ``evaluate.py`` plain mode via ``ravens_prompts.build_prompt``."""
+    """Loads tasks from JSON; prompts via ``ravens_prompts.build_prompt``."""
 
     def __init__(
         self,
@@ -26,11 +28,13 @@ class RavensNumericalTask(Task):
         ravens_repo_root: Path | None = None,
         max_tasks: int | None = None,
         rng: random.Random | None = None,
+        prompt_type: PromptType = "instruction",
     ) -> None:
         self._repo_root = Path(ravens_repo_root) if ravens_repo_root is not None else _default_ravens_repo_root()
         self._tasks_path = Path(tasks_json) if tasks_json is not None else self._repo_root / "tasks.json"
         self._max_tasks = max_tasks
         self._rng = rng or random.Random()
+        self._prompt_type: PromptType = prompt_type
         self._tasks: list[dict[str, Any]] = []
         self._load_tasks()
 
@@ -56,6 +60,24 @@ class RavensNumericalTask(Task):
             raise ValueError(f"No valid tasks loaded from {self._tasks_path}")
 
     def _task_to_stimulus(self, task: dict[str, Any]) -> Stimulus:
+        if self._prompt_type == "completion":
+            self._ensure_import_path()
+            from ravens_prompts import (
+                completion_perm_invariant,
+                expected_completion_answer,
+                format_completion_answer,
+            )
+
+            return Stimulus(
+                query="",
+                expected=expected_completion_answer(task),
+                metadata={
+                    "task": task,
+                    "perm_invariant": completion_perm_invariant(task["task_type"]),
+                },
+                answer_choices=[format_completion_answer(opt) for opt in task["answer_options"]],
+            )
+
         letter = task.get("correct_letter")
         if not letter:
             letter = "ABCD"[int(task["correct_index"])]
@@ -77,9 +99,21 @@ class RavensNumericalTask(Task):
         from ravens_prompts import build_prompt
 
         task = stimulus.metadata["task"]
-        return build_prompt(task, mode="plain", n_examples=n_examples)
+        return build_prompt(
+            task,
+            mode="plain",
+            n_examples=n_examples,
+            prompt_type=self._prompt_type,
+        )
 
     def score(self, response: ModelResponse, stimulus: Stimulus) -> bool:
+        if self._prompt_type == "completion":
+            text = response.text.split("]")[0].strip()
+            expected = stimulus.expected.strip()
+            if stimulus.metadata.get("perm_invariant", False):
+                return set(text.split()) == set(expected.split())
+            return text == expected
+
         self._ensure_import_path()
         from ravens_answer_parse import parse_answer
 
@@ -91,3 +125,8 @@ class RavensNumericalTask(Task):
             correct_index=ci,
         )
         return pred == ci
+
+    def format_completion(self, stimulus: Stimulus, choice: str) -> str:
+        if self._prompt_type == "completion":
+            return choice + "]"
+        return choice

@@ -78,6 +78,7 @@ class VLLMBackend(ModelBackend):
                 "model": self.model,
                 "prompt": prompt,
                 "max_tokens": 50,
+                "temperature": 0,
                 "logprobs": 1,
             }
         )

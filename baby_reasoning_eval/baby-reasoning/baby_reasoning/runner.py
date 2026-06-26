@@ -90,6 +90,7 @@ def save_results(
     n_examples: int,
     results_dir: Path | None = None,
     run_id: str | None = None,
+    results_suffix: str | None = None,
 ) -> Path:
     if results_dir is None:
         results_dir = RESULTS_DIR
@@ -104,7 +105,10 @@ def save_results(
 
     out_dir = results_dir / model_tag / run_id / task
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{n_examples}_examples.json"
+    if results_suffix:
+        out_path = out_dir / f"{n_examples}_examples_{results_suffix}.json"
+    else:
+        out_path = out_dir / f"{n_examples}_examples.json"
 
     data = [dataclasses.asdict(r) for r in results]
     out_path.write_text(json.dumps(data, indent=2))

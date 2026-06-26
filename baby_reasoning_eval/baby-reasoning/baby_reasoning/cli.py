@@ -84,6 +84,9 @@ class Config:
     ravens_max_tasks: int | None = None
     """If set, only the first N tasks from the JSON are evaluated."""
 
+    ravens_prompt_type: Literal["instruction", "completion"] = "instruction"
+    """``instruction``: letter MCQ (default). ``completion``: bracket fill-in (baby-reasoning / matrix_easy style)."""
+
 
 def _instantiate_task(task_name: TaskName, cfg: Config) -> Task:
     if task_name == "ravens_numerical":
@@ -91,6 +94,7 @@ def _instantiate_task(task_name: TaskName, cfg: Config) -> Task:
             tasks_json=cfg.ravens_tasks_json,
             ravens_repo_root=cfg.ravens_repo_root,
             max_tasks=cfg.ravens_max_tasks,
+            prompt_type=cfg.ravens_prompt_type,
         )
     ctor = TASK_MAP[task_name]
     return ctor()
@@ -148,6 +152,11 @@ def run(cfg: Config) -> None:
                     flush=True,
                 )
                 results = evaluate(task, backend, n_ex, stimuli)
+                results_suffix = (
+                    cfg.ravens_prompt_type
+                    if task_name == "ravens_numerical" and cfg.ravens_prompt_type != "instruction"
+                    else None
+                )
                 path = save_results(
                     results,
                     model_name,
@@ -155,6 +164,7 @@ def run(cfg: Config) -> None:
                     n_ex,
                     results_dir=cfg.results_dir,
                     run_id=run_id,
+                    results_suffix=results_suffix,
                 )
                 n_correct = sum(r.score.correct for r in results)
                 print(f"{n_correct}/{len(results)} correct → {path}")

@@ -416,3 +416,130 @@ def generate_intersection_task(
         "answer_options": options,
         "correct_index": correct_index,
     }
+
+
+LETTERS = "ABCD"
+
+# 3×3 matrix layout used in ``tasks.json`` (see ``validate_tasks.py``).
+_ICL_TASK_TYPES = (
+    "constancy",
+    "pattern",
+    "pattern_tuple",
+    "progression",
+    "combine",
+    "intersection",
+)
+
+
+def _expand_task_to_3x3(task: dict) -> dict:
+    """Expand a generator task to the 3×3 ``tasks.json`` matrix layout."""
+    tt = task["task_type"]
+    matrix = task["matrix"]
+
+    if tt == "constancy":
+        n = matrix[0][0]
+        expanded = [[n, n, n], [n, n, n], [n, n, None]]
+    elif tt == "pattern":
+        x, y = matrix[0][0], matrix[0][1]
+        expanded = [[x, y, y], [x, y, y], [x, y, None]]
+    elif tt == "pattern_tuple":
+        a, b = matrix[0][0], matrix[0][1]
+        expanded = [[a, b, b], [b, a, b], [b, b, None]]
+    elif tt in ("combine", "intersection"):
+        expanded = matrix
+    else:
+        raise ValueError(f"cannot expand task type: {tt!r}")
+
+    return {**task, "matrix": expanded}
+
+
+def _generate_icl_candidate(task_type: str, rng: random.Random) -> dict:
+    """Generate one 3×3 demonstration task of ``task_type``."""
+    if task_type == "constancy":
+        task = generate_constancy_task(rng=rng)
+    elif task_type == "pattern":
+        task = generate_pattern_task(rng=rng)
+    elif task_type == "pattern_tuple":
+        task = generate_pattern_tuple_task(rng=rng)
+    elif task_type == "progression":
+        b = rng.randint(1, 18)
+        a = rng.randint(1, 18)
+        correct = b + 2
+        distractors = generate_distractors(correct, 1, 20, rng=rng)
+        options = [correct] + distractors
+        rng.shuffle(options)
+        return {
+            "task_type": "progression",
+            "matrix": [[a, a + 1, a + 2], [b, b + 1, b + 2], [b, b + 1, None]],
+            "answer_options": options,
+            "correct_index": options.index(correct),
+        }
+    elif task_type == "combine":
+        return generate_combine_task(rng=rng)
+    elif task_type == "intersection":
+        return generate_intersection_task(rng=rng)
+    else:
+        raise ValueError(f"unknown task type: {task_type!r}")
+
+    return _expand_task_to_3x3(task)
+
+
+def task_fingerprint(task: dict) -> str:
+    """Hashable identity for overlap checks (matrix + options + correct index)."""
+    import json
+
+    return json.dumps(
+        {
+            "matrix": task["matrix"],
+            "answer_options": task["answer_options"],
+            "correct_index": task["correct_index"],
+        },
+        sort_keys=True,
+    )
+
+
+def matrix_fingerprint(task: dict) -> str:
+    """Matrix-only identity (exclude same grid even with different options)."""
+    import json
+
+    return json.dumps(task["matrix"], sort_keys=True)
+
+
+def generate_in_context_examples(
+    exclude: set[str],
+    *,
+    exclude_matrices: Optional[set[str]] = None,
+    n_per_type: int = 3,
+    seed: int = 20260619,
+    max_attempts: int = 5000,
+) -> dict[str, list[dict]]:
+    """Generate ICL demos that follow task patterns but are not in ``exclude``."""
+    rng = random.Random(seed)
+    out: dict[str, list[dict]] = {tt: [] for tt in _ICL_TASK_TYPES}
+    seen = set(exclude)
+    seen_matrices = set(exclude_matrices or ())
+
+    for task_type in _ICL_TASK_TYPES:
+        attempts = 0
+        while len(out[task_type]) < n_per_type and attempts < max_attempts:
+            attempts += 1
+            task = _generate_icl_candidate(task_type, rng)
+            fp = task_fingerprint(task)
+            mf = matrix_fingerprint(task)
+            if fp in seen or mf in seen_matrices:
+                continue
+            seen.add(fp)
+            seen_matrices.add(mf)
+            out[task_type].append(
+                {
+                    "matrix": task["matrix"],
+                    "answer_options": task["answer_options"],
+                    "correct_letter": LETTERS[task["correct_index"]],
+                }
+            )
+        if len(out[task_type]) < n_per_type:
+            raise RuntimeError(
+                f"Could only generate {len(out[task_type])}/{n_per_type} "
+                f"ICL examples for {task_type} after {attempts} attempts"
+            )
+    return out
