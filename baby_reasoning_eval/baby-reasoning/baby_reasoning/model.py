@@ -1,8 +1,47 @@
 from __future__ import annotations
 
+import re
+import sys
+from pathlib import Path
+
 import requests
 
 from baby_reasoning.tasks.base import ModelBackend, ModelResponse
+
+CHOICE_ONLY_MAX_TOKENS = 256
+
+
+def _repo_root() -> Path:
+    # baby_reasoning/model.py -> baby_reasoning, clone root, baby_reasoning_eval, ravens root
+    return Path(__file__).resolve().parents[3]
+
+
+def _import_choice_logprobs():
+    root = str(_repo_root())
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from ravens_choice_logprobs import CHOICE_ONLY_FORMAT
+
+    return CHOICE_ONLY_FORMAT
+
+
+def _import_is_qwen3():
+    root = str(_repo_root())
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from ravens_eval_models import is_qwen3_model
+
+    return is_qwen3_model
+
+
+def strip_qwen_thinking(text: str) -> str:
+    """Remove Qwen3 reasoning blocks that may appear in completion output."""
+    for pat in (
+        r"<\s*think\s*>.*?<\s*/\s*think\s*>",
+        r"<\s*redacted_reasoning\s*>.*?<\s*/\s*redacted_reasoning\s*>",
+    ):
+        text = re.sub(pat, "", text, flags=re.DOTALL | re.IGNORECASE)
+    return text.strip()
 
 
 class OllamaBackend(ModelBackend):
@@ -58,14 +97,15 @@ class VLLMBackend(ModelBackend):
     def __init__(self, model: str, base_url: str = "http://localhost:8000") -> None:
         self._model = model
         self.base_url = base_url.rstrip("/")
+        self._is_qwen3 = _import_is_qwen3()(model)
 
     @property
     def model(self) -> str:
         return self._model
 
-    def _post(self, payload: dict) -> dict:
+    def _post(self, path: str, payload: dict) -> dict:
         response = requests.post(
-            f"{self.base_url}/v1/completions",
+            f"{self.base_url}{path}",
             json=payload,
             timeout=120,
         )
@@ -74,13 +114,14 @@ class VLLMBackend(ModelBackend):
 
     def generate(self, prompt: str) -> ModelResponse:
         data = self._post(
+            "/v1/completions",
             {
                 "model": self.model,
                 "prompt": prompt,
                 "max_tokens": 50,
                 "temperature": 0,
                 "logprobs": 1,
-            }
+            },
         )
         choice = data["choices"][0]
         logprobs_data = choice.get("logprobs")
@@ -89,25 +130,25 @@ class VLLMBackend(ModelBackend):
             if isinstance(logprobs_data, dict)
             else None
         )
+        text = choice.get("text", "").rstrip()
+        if self._is_qwen3:
+            text = strip_qwen_thinking(text)
         return ModelResponse(
-            text=choice.get("text", "").rstrip(),
+            text=text,
             token_logprobs=token_logprobs,
         )
 
     def score_completion(self, prompt: str, completion: str) -> float | None:
-        """Return sum of token log probs for the completion only, or None if unsupported.
-
-        Uses text_offset from the echoed response to identify which tokens
-        belong to the completion (offset >= len(prompt)) and sums only those.
-        """
+        """Return sum of token log probs for the completion only, or None if unsupported."""
         data = self._post(
+            "/v1/completions",
             {
                 "model": self.model,
                 "prompt": prompt + completion,
                 "max_tokens": 0,
                 "echo": True,
                 "logprobs": 1,
-            }
+            },
         )
         choice = data["choices"][0]
         logprobs_data = choice.get("logprobs")
@@ -124,3 +165,95 @@ class VLLMBackend(ModelBackend):
             lp for lp, off in zip(token_logprobs, text_offset)
             if off >= prompt_len and lp is not None
         )
+
+
+class ChoiceOnlyVLLMBackend(ModelBackend):
+    """Instruction choice-only eval via vLLM structured JSON + choice-token logprobs."""
+
+    _api_path = "/v1/completions"
+
+    def __init__(self, model: str, base_url: str = "http://localhost:8000") -> None:
+        self._model = model
+        self.base_url = base_url.rstrip("/")
+        self._choice_schema = _import_choice_logprobs()
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def _post(self, payload: dict) -> dict:
+        response = requests.post(
+            f"{self.base_url}{self._api_path}",
+            json=payload,
+            timeout=120,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def _response_format_payload(self) -> dict:
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "choice_only",
+                "schema": self._choice_schema,
+                "strict": True,
+            },
+        }
+
+    def _build_generate_payload(self, prompt: str) -> dict:
+        return {
+            "model": self.model,
+            "prompt": prompt,
+            "max_tokens": CHOICE_ONLY_MAX_TOKENS,
+            "temperature": 0,
+            "logprobs": True,
+            "top_logprobs": 20,
+            "extra_body": {"guided_json": self._choice_schema},
+        }
+
+    def _extract_text(self, data: dict) -> str:
+        choice = data["choices"][0]
+        message = choice.get("message")
+        if isinstance(message, dict):
+            content = message.get("content")
+            if content is not None:
+                return str(content).strip()
+        return str(choice.get("text", "")).strip()
+
+    def generate(self, prompt: str) -> ModelResponse:
+        data = self._post(self._build_generate_payload(prompt))
+        choice = data["choices"][0]
+        logprobs_data = choice.get("logprobs")
+        token_logprobs = None
+        if isinstance(logprobs_data, dict):
+            token_logprobs = logprobs_data.get("token_logprobs")
+        return ModelResponse(
+            text=self._extract_text(data),
+            token_logprobs=token_logprobs,
+            raw=data,
+        )
+
+    def score_completion(self, prompt: str, completion: str) -> float | None:
+        return None
+
+
+class PythiaChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
+    """Pythia instruction: completions API + guided JSON."""
+
+
+class Qwen3ChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
+    """Qwen3 instruction: chat completions + JSON schema + thinking off."""
+
+    _api_path = "/v1/chat/completions"
+
+    def _build_generate_payload(self, prompt: str) -> dict:
+        return {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": CHOICE_ONLY_MAX_TOKENS,
+            "temperature": 0,
+            "logprobs": True,
+            "top_logprobs": 20,
+            "response_format": self._response_format_payload(),
+            "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+        }

@@ -69,7 +69,9 @@ from ravens_eval_models import (  # noqa: E402
     DEFAULT_PYTHIA_VLLM,
     DEFAULT_QWEN3_VLLM,
     gpu_tier_for_model,
+    is_qwen3_model,
     max_model_len_for_model,
+    resolve_instruction_prompt_mode,
     resolve_models_arg,
 )
 
@@ -94,9 +96,15 @@ def resolve_prompt_types(prompt_type: str) -> list[str]:
     return [prompt_type]
 
 
-def _results_filename(n_examples: int, prompt_type: str) -> str:
+def _results_filename(
+    n_examples: int,
+    prompt_type: str,
+    prompt_mode: str | None = None,
+) -> str:
     if prompt_type == "completion":
         return f"{n_examples}_examples_completion.json"
+    if prompt_mode == "choice_only":
+        return f"{n_examples}_examples_choice_only.json"
     return f"{n_examples}_examples.json"
 
 VLLM_HOST = "127.0.0.1"
@@ -252,7 +260,7 @@ def _attention_backend_for_gpu(gpu_tier: str) -> str:
 
 def _build_vllm_serve_cmd(model_id: str, gpu_tier: str) -> list[str]:
     max_len = max_model_len_for_model(model_id)
-    return [
+    cmd = [
         "vllm",
         "serve",
         model_id,
@@ -267,6 +275,16 @@ def _build_vllm_serve_cmd(model_id: str, gpu_tier: str) -> list[str]:
         "--max-model-len",
         str(max_len),
     ]
+    if is_qwen3_model(model_id):
+        cmd.extend(
+            [
+                "--reasoning-parser",
+                "qwen3",
+                "--default-chat-template-kwargs",
+                '{"enable_thinking": false}',
+            ]
+        )
+    return cmd
 
 
 def _run_baby_reasoning_cli(
@@ -275,6 +293,7 @@ def _run_baby_reasoning_cli(
     n_examples: int,
     prompt_type: str,
     env: dict[str, str],
+    ravens_prompt_mode: str = "auto",
 ) -> Path:
     """Run baby-reasoning CLI for one prompt type (vLLM must already be up)."""
     if prompt_type not in PROMPT_TYPES:
@@ -300,6 +319,8 @@ def _run_baby_reasoning_cli(
         "--ravens-prompt-type",
         prompt_type,
     ]
+    if prompt_type == "instruction":
+        cmd.extend(["--ravens-prompt-mode", ravens_prompt_mode])
     if max_tasks is not None:
         cmd.extend(["--ravens-max-tasks", str(max_tasks)])
 
@@ -307,7 +328,12 @@ def _run_baby_reasoning_cli(
     subprocess.check_call(cmd, cwd=CONTAINER_BABY_ROOT, env=env)
 
     results_root = Path(CONTAINER_BABY_ROOT) / "results"
-    results_name = _results_filename(n_examples, prompt_type)
+    instruction_mode = (
+        resolve_instruction_prompt_mode(ravens_prompt_mode)
+        if prompt_type == "instruction"
+        else None
+    )
+    results_name = _results_filename(n_examples, prompt_type, instruction_mode)
     results_glob = f"**/ravens_numerical/{results_name}"
     candidates = sorted(
         results_root.glob(results_glob),
@@ -327,6 +353,7 @@ def _run_script(
     vllm_served_name: Optional[str] = None,
     n_examples: int = DEFAULT_N_EXAMPLES,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
 ) -> Path:
     """Start vLLM, run baby-reasoning CLI, return path to results JSON."""
     run_types = resolve_prompt_types(prompt_type)
@@ -346,7 +373,9 @@ def _run_script(
     proc, reader, log_file = _start_vllm_server(serve_cmd, log_path, env)
     try:
         _wait_for_vllm(proc, log_path, serve_cmd)
-        return _run_baby_reasoning_cli(served, max_tasks, n_examples, pt, env)
+        return _run_baby_reasoning_cli(
+            served, max_tasks, n_examples, pt, env, ravens_prompt_mode
+        )
     finally:
         _stop_vllm_server(proc, log_file, reader)
 
@@ -410,6 +439,7 @@ def _run_model_eval(
     vllm_served_name: Optional[str] = None,
     n_examples: int = DEFAULT_N_EXAMPLES,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
 ) -> dict[str, Any] | dict[str, dict[str, Any]]:
     run_types = resolve_prompt_types(prompt_type)
     served = vllm_served_name or model_id
@@ -426,6 +456,7 @@ def _run_model_eval(
             vllm_served_name,
             n_examples,
             prompt_type=pt,
+            ravens_prompt_mode=ravens_prompt_mode,
         )
         summary = _make_model_summary(
             results_path,
@@ -448,7 +479,12 @@ def _run_model_eval(
         for pt in run_types:
             print(f"\n--- prompt_type={pt} ---\n", flush=True)
             results_path = _run_baby_reasoning_cli(
-                served, max_tasks, n_examples, pt, env
+                served,
+                max_tasks,
+                n_examples,
+                pt,
+                env,
+                ravens_prompt_mode if pt == "instruction" else "auto",
             )
             summary = _make_model_summary(
                 results_path,
@@ -473,6 +509,7 @@ def _log_experiment_local(
     max_tasks: Optional[int],
     n_examples: int,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
     accuracy_delta: Optional[float] = None,
 ) -> None:
     """Append results to ``experiments.md`` on the local machine (after ``.remote()``)."""
@@ -481,6 +518,11 @@ def _log_experiment_local(
     settings_note = (
         f"{EXPERIMENT_SETTINGS_NOTE}; `--n-examples {n_examples}`; "
         f"`--prompt-type {prompt_type}`"
+        + (
+            f"; `--ravens-prompt-mode {resolve_instruction_prompt_mode(ravens_prompt_mode)}`"
+            if prompt_type == "instruction"
+            else ""
+        )
     )
     append_experiment_entry(
         EXPERIMENTS_MD_LOCAL,
@@ -503,10 +545,16 @@ def run_ravens_eval_t4(
     max_tasks: Optional[int] = None,
     n_examples: int = DEFAULT_N_EXAMPLES,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
 ) -> dict[str, Any]:
     """Evaluate one HF model on ravens_numerical via in-container vLLM (T4)."""
     return _run_model_eval(
-        model_id, max_tasks, gpu_tier="T4", n_examples=n_examples, prompt_type=prompt_type
+        model_id,
+        max_tasks,
+        gpu_tier="T4",
+        n_examples=n_examples,
+        prompt_type=prompt_type,
+        ravens_prompt_mode=ravens_prompt_mode,
     )
 
 
@@ -521,10 +569,16 @@ def run_ravens_eval_a10g(
     max_tasks: Optional[int] = None,
     n_examples: int = DEFAULT_N_EXAMPLES,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
 ) -> dict[str, Any]:
     """Evaluate one HF model on ravens_numerical via in-container vLLM (A10G)."""
     return _run_model_eval(
-        model_id, max_tasks, gpu_tier="A10G", n_examples=n_examples, prompt_type=prompt_type
+        model_id,
+        max_tasks,
+        gpu_tier="A10G",
+        n_examples=n_examples,
+        prompt_type=prompt_type,
+        ravens_prompt_mode=ravens_prompt_mode,
     )
 
 
@@ -539,13 +593,19 @@ def run_ravens_eval_a100(
     max_tasks: Optional[int] = None,
     n_examples: int = DEFAULT_N_EXAMPLES,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
 ) -> dict[str, Any]:
     """Evaluate one HF model on ravens_numerical via in-container vLLM (A100).
 
     Used for ≥10B models (e.g. Pythia-12B, Qwen3-14B) that OOM on A10G in fp16.
     """
     return _run_model_eval(
-        model_id, max_tasks, gpu_tier="A100", n_examples=n_examples, prompt_type=prompt_type
+        model_id,
+        max_tasks,
+        gpu_tier="A100",
+        n_examples=n_examples,
+        prompt_type=prompt_type,
+        ravens_prompt_mode=ravens_prompt_mode,
     )
 
 
@@ -554,28 +614,21 @@ def _remote_run_ravens_eval(
     max_tasks: Optional[int],
     n_examples: int,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
 ) -> dict[str, Any]:
     tier = gpu_tier_for_model(model_id)
+    kwargs = {
+        "model_id": model_id,
+        "max_tasks": max_tasks,
+        "n_examples": n_examples,
+        "prompt_type": prompt_type,
+        "ravens_prompt_mode": ravens_prompt_mode,
+    }
     if tier == "T4":
-        return run_ravens_eval_t4.remote(
-            model_id=model_id,
-            max_tasks=max_tasks,
-            n_examples=n_examples,
-            prompt_type=prompt_type,
-        )
+        return run_ravens_eval_t4.remote(**kwargs)
     if tier == "A100":
-        return run_ravens_eval_a100.remote(
-            model_id=model_id,
-            max_tasks=max_tasks,
-            n_examples=n_examples,
-            prompt_type=prompt_type,
-        )
-    return run_ravens_eval_a10g.remote(
-        model_id=model_id,
-        max_tasks=max_tasks,
-        n_examples=n_examples,
-        prompt_type=prompt_type,
-    )
+        return run_ravens_eval_a100.remote(**kwargs)
+    return run_ravens_eval_a10g.remote(**kwargs)
 
 
 @app.function(
@@ -643,6 +696,7 @@ def main(
     models: str = "sweep",
     n_examples: int = DEFAULT_N_EXAMPLES,
     prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
 ) -> None:
     """Local entry: ``modal run baby_reasoning_eval/modal_eval.py --models sweep``.
 
@@ -672,7 +726,11 @@ def main(
             flush=True,
         )
         summary = _remote_run_ravens_eval(
-            model_id, max_tasks, n_examples, prompt_type=prompt_type
+            model_id,
+            max_tasks,
+            n_examples,
+            prompt_type=prompt_type,
+            ravens_prompt_mode=ravens_prompt_mode,
         )
         safe_key = model_id.replace("/", "--")
 
@@ -686,6 +744,7 @@ def main(
                     max_tasks=max_tasks,
                     n_examples=n_examples,
                     prompt_type=pt,
+                    ravens_prompt_mode=ravens_prompt_mode,
                 )
         else:
             assert isinstance(summary, dict) and "prompt_type" in summary
@@ -696,12 +755,14 @@ def main(
                 max_tasks=max_tasks,
                 n_examples=n_examples,
                 prompt_type=prompt_type,
+                ravens_prompt_mode=ravens_prompt_mode,
             )
 
     output = {
         "models": model_ids,
         "n_examples": n_examples,
         "prompt_type": prompt_type,
+        "ravens_prompt_mode": ravens_prompt_mode,
         "max_tasks": max_tasks,
         "results": all_results,
     }

@@ -50,7 +50,9 @@ DEFAULT_RESULTS_DIR = _EVAL_DIR / "baby-reasoning" / "results"
 DEFAULT_CSV = _EVAL_DIR / "scaling_results.csv"
 DEFAULT_MD = _EVAL_DIR / "scaling_results.md"
 
-_EXAMPLES_RE = re.compile(r"^(\d+)_examples(?:_(instruction|completion))?\.json$")
+_EXAMPLES_RE = re.compile(
+    r"^(\d+)_examples(?:_(instruction|completion|choice_only))?\.json$"
+)
 
 
 def _parse_n_examples(path: Path) -> int | None:
@@ -109,6 +111,14 @@ def _summarize_json(path: Path) -> dict:
             letter_counts.most_common(1)[0][1] / total if letter_counts and total else 0.0
         ),
     }
+    brier_vals = [
+        r.get("score", {}).get("brier")
+        for r in data
+        if r.get("score", {}).get("brier") is not None
+    ]
+    if brier_vals:
+        row["mean_brier"] = sum(brier_vals) / len(brier_vals)
+        row["brier_n"] = len(brier_vals)
     for task_type in TASK_TYPE_ORDER:
         vals = by_type.get(task_type, [])
         row[f"acc_{task_type}"] = sum(vals) / len(vals) if vals else None

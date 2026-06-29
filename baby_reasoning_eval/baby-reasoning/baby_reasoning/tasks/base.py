@@ -18,6 +18,7 @@ class Stimulus:
 class ModelResponse:
     text: str
     token_logprobs: list[float] | None = None
+    raw: dict | None = None
 
 
 @dataclass
@@ -26,6 +27,8 @@ class TrialScore:
     logprob_correct: float | None
     prob_correct: float | None = None
     answer_logprobs: dict[str, float | None] | None = None
+    logprob_argmax_correct: bool | None = None
+    brier: float | None = None
 
 
 @dataclass

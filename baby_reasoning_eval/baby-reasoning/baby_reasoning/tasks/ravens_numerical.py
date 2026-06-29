@@ -11,6 +11,7 @@ from typing import Any, Literal
 from baby_reasoning.tasks.base import ModelResponse, Stimulus, Task
 
 PromptType = Literal["instruction", "completion"]
+PromptMode = Literal["plain", "choice_only", "cot_choice"]
 
 
 def _default_ravens_repo_root() -> Path:
@@ -29,12 +30,14 @@ class RavensNumericalTask(Task):
         max_tasks: int | None = None,
         rng: random.Random | None = None,
         prompt_type: PromptType = "instruction",
+        prompt_mode: PromptMode = "choice_only",
     ) -> None:
         self._repo_root = Path(ravens_repo_root) if ravens_repo_root is not None else _default_ravens_repo_root()
         self._tasks_path = Path(tasks_json) if tasks_json is not None else self._repo_root / "tasks.json"
         self._max_tasks = max_tasks
         self._rng = rng or random.Random()
         self._prompt_type: PromptType = prompt_type
+        self._prompt_mode: PromptMode = prompt_mode
         self._tasks: list[dict[str, Any]] = []
         self._load_tasks()
 
@@ -99,12 +102,17 @@ class RavensNumericalTask(Task):
         from ravens_prompts import build_prompt
 
         task = stimulus.metadata["task"]
+        mode = self._prompt_mode if self._prompt_type == "instruction" else "plain"
         return build_prompt(
             task,
-            mode="plain",
+            mode=mode,
             n_examples=n_examples,
             prompt_type=self._prompt_type,
         )
+
+    @property
+    def uses_choice_only_metrics(self) -> bool:
+        return self._prompt_type == "instruction" and self._prompt_mode == "choice_only"
 
     def score(self, response: ModelResponse, stimulus: Stimulus) -> bool:
         if self._prompt_type == "completion":

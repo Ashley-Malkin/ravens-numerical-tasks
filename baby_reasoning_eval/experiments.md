@@ -756,3 +756,120 @@ _Logged 2026-06-26 17:30 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 204
 - **By task:** combine 30.0% (6/20) · constancy 95.0% (19/20) · intersection 30.0% (6/20) · pattern 55.0% (11/20) · pattern_tuple 30.0% (6/20) · progression 30.0% (6/20)
 
 ---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-70m-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 21:41 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-70m-deduped
+- **Overall:** 21.7% (26/120)
+- **By task:** combine 5.0% (1/20) · constancy 15.0% (3/20) · intersection 30.0% (6/20) · pattern 20.0% (4/20) · pattern_tuple 40.0% (8/20) · progression 20.0% (4/20)
+
+---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-160m-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 21:44 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-160m-deduped
+- **Overall:** 32.5% (39/120)
+- **By task:** combine 25.0% (5/20) · constancy 15.0% (3/20) · intersection 40.0% (8/20) · pattern 50.0% (10/20) · pattern_tuple 35.0% (7/20) · progression 30.0% (6/20)
+
+---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-410m-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 21:49 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-410m-deduped
+- **Overall:** 21.7% (26/120)
+- **By task:** combine 10.0% (2/20) · constancy 25.0% (5/20) · intersection 15.0% (3/20) · pattern 15.0% (3/20) · pattern_tuple 40.0% (8/20) · progression 25.0% (5/20)
+
+---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-1b-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 21:56 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-1b-deduped
+- **Overall:** 21.7% (26/120)
+- **By task:** combine 10.0% (2/20) · constancy 30.0% (6/20) · intersection 20.0% (4/20) · pattern 10.0% (2/20) · pattern_tuple 35.0% (7/20) · progression 25.0% (5/20)
+
+---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-1.4b-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 22:07 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-1.4b-deduped
+- **Overall:** 30.8% (37/120)
+- **By task:** combine 35.0% (7/20) · constancy 20.0% (4/20) · intersection 40.0% (8/20) · pattern 35.0% (7/20) · pattern_tuple 35.0% (7/20) · progression 20.0% (4/20)
+
+---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-2.8b-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 22:19 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-2.8b-deduped
+- **Overall:** 22.5% (27/120)
+- **By task:** combine 10.0% (2/20) · constancy 35.0% (7/20) · intersection 35.0% (7/20) · pattern 15.0% (3/20) · pattern_tuple 20.0% (4/20) · progression 20.0% (4/20)
+
+---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-6.9b-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 22:41 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-6.9b-deduped
+- **Overall:** 31.7% (38/120)
+- **By task:** combine 35.0% (7/20) · constancy 15.0% (3/20) · intersection 40.0% (8/20) · pattern 40.0% (8/20) · pattern_tuple 35.0% (7/20) · progression 25.0% (5/20)
+
+---
+## 2026-06-29 — run_ravens_eval (EleutherAI--pythia-12b-deduped, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 22:56 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### EleutherAI/pythia-12b-deduped
+- **Overall:** 31.7% (38/120)
+- **By task:** combine 20.0% (4/20) · constancy 10.0% (2/20) · intersection 35.0% (7/20) · pattern 45.0% (9/20) · pattern_tuple 50.0% (10/20) · progression 30.0% (6/20)
+
+---
+## 2026-06-29 — run_ravens_eval (Qwen--Qwen3-0.6B, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 22:59 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### Qwen/Qwen3-0.6B
+- **Overall:** 31.7% (38/120)
+- **By task:** combine 65.0% (13/20) · constancy 25.0% (5/20) · intersection 15.0% (3/20) · pattern 5.0% (1/20) · pattern_tuple 55.0% (11/20) · progression 25.0% (5/20)
+
+---
+## 2026-06-29 — run_ravens_eval (Qwen--Qwen3-1.7B, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 23:03 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### Qwen/Qwen3-1.7B
+- **Overall:** 65.0% (78/120)
+- **By task:** combine 85.0% (17/20) · constancy 100.0% (20/20) · intersection 15.0% (3/20) · pattern 90.0% (18/20) · pattern_tuple 70.0% (14/20) · progression 30.0% (6/20)
+
+---
+## 2026-06-29 — run_ravens_eval (Qwen--Qwen3-4B, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 23:07 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### Qwen/Qwen3-4B
+- **Overall:** 75.0% (90/120)
+- **By task:** combine 55.0% (11/20) · constancy 100.0% (20/20) · intersection 50.0% (10/20) · pattern 100.0% (20/20) · pattern_tuple 85.0% (17/20) · progression 60.0% (12/20)
+
+---
+## 2026-06-29 — run_ravens_eval (Qwen--Qwen3-8B, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 23:10 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### Qwen/Qwen3-8B
+- **Overall:** 84.2% (101/120)
+- **By task:** combine 75.0% (15/20) · constancy 100.0% (20/20) · intersection 45.0% (9/20) · pattern 100.0% (20/20) · pattern_tuple 100.0% (20/20) · progression 85.0% (17/20)
+
+---
+## 2026-06-29 — run_ravens_eval (Qwen--Qwen3-14B, instruction) (max_tasks=120)
+
+_Logged 2026-06-29 23:14 UTC. Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`; `--n-examples 1`; `--prompt-type instruction`; `--ravens-prompt-mode choice_only`_
+
+### Qwen/Qwen3-14B
+- **Overall:** 90.0% (108/120)
+- **By task:** combine 90.0% (18/20) · constancy 100.0% (20/20) · intersection 60.0% (12/20) · pattern 100.0% (20/20) · pattern_tuple 100.0% (20/20) · progression 90.0% (18/20)
+
+---

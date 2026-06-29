@@ -13,6 +13,14 @@ from typing import Optional
 from urllib.request import Request, urlopen
 
 from ravens_answer_parse import parse_answer, parse_structured_choice
+from ravens_choice_logprobs import (
+    CHOICE_ONLY_FORMAT,
+    COT_CHOICE_FORMAT,
+    has_finite_letter_logprob,
+    letter_logprobs_to_probs,
+    multiclass_brier_score,
+    parse_logprobs_by_letter,
+)
 from ravens_prompts import (
     build_prompt,
     format_cell,
@@ -24,32 +32,6 @@ from ravens_prompts import (
 # When --debug, evaluate all of these models and report results for each.
 # Ollama names use colons for tags. To download: ollama pull qwen3:30b && ollama pull qwen3:8b && ollama pull qwen3:4b
 DEBUG_MODELS = ["qwen3:30b", "qwen3:8b", "qwen3:4b", "qwen3:1.7b", "qwen3:0.6b"]
-
-# Ollama structured output for --choice-only (JSON Schema subset).
-CHOICE_ONLY_FORMAT = {
-    "type": "object",
-    "properties": {
-        "choice": {
-            "type": "string",
-            "enum": ["A", "B", "C", "D"],
-        }
-    },
-    "required": ["choice"],
-}
-
-# CoT + forced choice: reasoning string then same choice enum; logprobs align to choice letter token.
-COT_CHOICE_FORMAT = {
-    "type": "object",
-    "properties": {
-        "reasoning": {"type": "string"},
-        "choice": {
-            "type": "string",
-            "enum": ["A", "B", "C", "D"],
-        },
-    },
-    "required": ["reasoning", "choice"],
-}
-
 
 def _in_context_example_block(task_type: str, mode: str) -> str:
     """Alias for ``ravens_prompts.in_context_example_block`` (backward-compatible name)."""
@@ -107,139 +89,6 @@ def call_ollama(
         summary = {k: v for k, v in data.items() if k not in ("response", "thinking") and not (isinstance(v, list) and len(str(v)) > 200)}
         print(f"Warning: empty model response. API keys: {list(data.keys())}. Summary: {summary}", file=sys.stderr)
     return text, data
-
-
-def _read_logprob(obj: dict) -> Optional[float]:
-    """Read logprob from a logprobs entry (``logprob`` / ``log_prob``). Treat (0,1] as probability."""
-    raw = obj.get("logprob") if obj.get("logprob") is not None else obj.get("log_prob")
-    if raw is None:
-        return None
-    v = float(raw)
-    if v == 0:
-        return None
-    if 0 < v <= 1:
-        return math.log(v)
-    return v
-
-
-def _letter_logprobs_single_entry(entry: dict) -> dict[str, float]:
-    """Collect best logprob per letter A–D from one logprob step (chosen token + ``top_logprobs``)."""
-    letters = "ABCD"
-    best: dict[str, float] = {c: float("-inf") for c in letters}
-    token_str = (entry.get("token") or "").strip().upper()
-    if token_str and token_str[0] in letters:
-        lp = _read_logprob(entry)
-        if lp is not None:
-            best[token_str[0]] = max(best[token_str[0]], lp)
-    for alt in entry.get("top_logprobs") or []:
-        t = (alt.get("token") or "").strip().upper()
-        if t and t[0] in letters:
-            lp = _read_logprob(alt)
-            if lp is not None:
-                best[t[0]] = max(best[t[0]], lp)
-    return best
-
-
-def _choice_letter_char_index(text: str) -> Optional[int]:
-    """Start index of the A–D value in ``"choice":"X"`` (0-based in ``text``)."""
-    m = re.search(r'(?i)"choice"\s*:\s*"\s*([ABCD])', text.strip())
-    if m:
-        return m.start(1)
-    return None
-
-
-def _char_index_to_token_index(tokens: list[str], char_pos: int) -> Optional[int]:
-    """Which generated token covers ``char_pos`` in ``"".join(tokens)``."""
-    if char_pos < 0:
-        return None
-    off = 0
-    for i, t in enumerate(tokens):
-        ln = len(t)
-        if off <= char_pos < off + ln:
-            return i
-        off += ln
-    return None
-
-
-def parse_logprobs_by_letter(resp_data: dict, response_text: str) -> tuple[Optional[int], dict[str, float]]:
-    """Logprobs **only at the token that contains the JSON choice letter** (after ``"choice":``).
-
-    Builds text as ``"".join`` of per-step ``token`` strings from ``logprobs`` (same order as
-    generation), finds the ``A``–``D`` in ``"choice":"X"``, maps that character to its token
-    index, then reads A–D masses from **that** step only (chosen token + ``top_logprobs``).
-
-    If the regex does not match the concatenated tokens, tries again on ``response_text`` and
-    maps the matched letter back onto ``full`` only when an identical ``"choice":"X"`` span exists
-    there. Otherwise returns ``(None, {-inf,...})``.
-    """
-    letters = "ABCD"
-    empty = {c: float("-inf") for c in letters}
-    logprobs_list = resp_data.get("logprobs") or []
-    if not logprobs_list:
-        return None, empty
-
-    tokens = [e.get("token") or "" for e in logprobs_list]
-    full = "".join(tokens)
-
-    def pos_in_full() -> Optional[int]:
-        p = _choice_letter_char_index(full)
-        if p is not None:
-            return p
-        mr = re.search(r'(?i)"choice"\s*:\s*"\s*([ABCD])', response_text.strip())
-        if not mr:
-            return None
-        letter = mr.group(1).upper()
-        mfull = re.search(r'(?i)("choice"\s*:\s*"\s*)(' + letter + ")", full)
-        if mfull:
-            return mfull.start(2)
-        return None
-
-    pos = pos_in_full()
-    if pos is None:
-        return None, empty
-
-    ti = _char_index_to_token_index(tokens, pos)
-    if ti is None:
-        return None, empty
-
-    best = _letter_logprobs_single_entry(logprobs_list[ti])
-    top = max(letters, key=lambda c: best[c])
-    if best[top] == float("-inf"):
-        return None, best
-    return ord(top) - ord("A"), best
-
-
-def _has_finite_letter_logprob(best: dict[str, float]) -> bool:
-    """True if at least one A–D has a finite logprob (partial ``top_logprobs`` is ok)."""
-    return any(v > float("-inf") and not math.isnan(v) for v in best.values())
-
-
-def letter_logprobs_to_probs(best: dict[str, float]) -> Optional[list[float]]:
-    """Softmax over A,B,C,D into probabilities (order A..D). Missing letters use a log floor."""
-    letters = "ABCD"
-    log_floor = -1e9
-    lps: list[float] = []
-    for c in letters:
-        v = best.get(c, float("-inf"))
-        if v == float("-inf") or math.isnan(v):
-            v = log_floor
-        lps.append(v)
-    m = max(lps)
-    exps = [math.exp(x - m) for x in lps]
-    s = sum(exps)
-    if s <= 0:
-        return None
-    return [e / s for e in exps]
-
-
-def multiclass_brier_score(probs: list[float], correct_idx: int) -> float:
-    """Multiclass Brier score: ``(1/K) * sum_k (p_k - o_k)^2`` with one-hot ``o``. Lower is better; 0 = perfect."""
-    k = len(probs)
-    if not (0 <= correct_idx < k):
-        raise ValueError("correct_idx out of range")
-    o = [0.0] * k
-    o[correct_idx] = 1.0
-    return sum((probs[i] - o[i]) ** 2 for i in range(k)) / k
 
 
 def run_evaluation(
@@ -339,7 +188,7 @@ def run_evaluation(
                 if (
                     brier_by_type is not None
                     and logprobs_by_letter is not None
-                    and _has_finite_letter_logprob(logprobs_by_letter)
+                    and has_finite_letter_logprob(logprobs_by_letter)
                     and 0 <= correct_idx < 4
                 ):
                     choice_token_probs = letter_logprobs_to_probs(logprobs_by_letter)

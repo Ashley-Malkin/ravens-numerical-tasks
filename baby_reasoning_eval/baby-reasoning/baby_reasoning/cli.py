@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from baby_reasoning.model import OllamaBackend, VLLMBackend
+from baby_reasoning.model import (
+    OllamaBackend,
+    PythiaChoiceOnlyVLLMBackend,
+    Qwen3ChoiceOnlyVLLMBackend,
+    VLLMBackend,
+)
 from baby_reasoning.runner import evaluate, save_results
-from baby_reasoning.tasks.base import Task
+from baby_reasoning.tasks.base import ModelBackend, Task
 from baby_reasoning.tasks.hierarchical import HierarchicalTask
 from baby_reasoning.tasks.matrix import MatrixTask
 from baby_reasoning.tasks.matrix_easy import MatrixEasyTask
@@ -30,6 +36,19 @@ TaskName = Literal[
 
 
 BackendName = Literal["vllm", "ollama"]
+InstructionPromptMode = Literal["auto", "plain", "choice_only", "cot_choice"]
+
+
+def _ravens_repo_root(cfg: "Config") -> Path:
+    if cfg.ravens_repo_root is not None:
+        return Path(cfg.ravens_repo_root)
+    return Path(__file__).resolve().parents[4]
+
+
+def _ensure_repo_on_path(repo_root: Path) -> None:
+    root_s = str(repo_root.resolve())
+    if root_s not in sys.path:
+        sys.path.insert(0, root_s)
 
 
 @dataclass
@@ -87,20 +106,34 @@ class Config:
     ravens_prompt_type: Literal["instruction", "completion"] = "instruction"
     """``instruction``: letter MCQ (default). ``completion``: bracket fill-in (baby-reasoning / matrix_easy style)."""
 
+    ravens_prompt_mode: InstructionPromptMode = "auto"
+    """Instruction-only output mode. ``auto`` → ``choice_only`` (JSON ``{"choice":"B"}``). Ignored for completion."""
+
+
+def _resolved_instruction_prompt_mode(cfg: Config) -> str:
+    _ensure_repo_on_path(_ravens_repo_root(cfg))
+    from ravens_eval_models import resolve_instruction_prompt_mode
+
+    return resolve_instruction_prompt_mode(cfg.ravens_prompt_mode)
+
 
 def _instantiate_task(task_name: TaskName, cfg: Config) -> Task:
     if task_name == "ravens_numerical":
+        prompt_mode = _resolved_instruction_prompt_mode(cfg)
+        if prompt_mode not in ("plain", "choice_only", "cot_choice"):
+            raise ValueError(f"Unsupported ravens_prompt_mode: {prompt_mode!r}")
         return RavensNumericalTask(
             tasks_json=cfg.ravens_tasks_json,
             ravens_repo_root=cfg.ravens_repo_root,
             max_tasks=cfg.ravens_max_tasks,
             prompt_type=cfg.ravens_prompt_type,
+            prompt_mode=prompt_mode,  # type: ignore[arg-type]
         )
     ctor = TASK_MAP[task_name]
     return ctor()
 
 
-def _make_backend(cfg: Config, model_name: str) -> OllamaBackend | VLLMBackend:
+def _make_backend(cfg: Config, model_name: str, task: Task) -> ModelBackend:
     if cfg.backend == "ollama":
         return OllamaBackend(
             model_name,
@@ -108,6 +141,18 @@ def _make_backend(cfg: Config, model_name: str) -> OllamaBackend | VLLMBackend:
             timeout=cfg.ollama_timeout,
             max_tokens=cfg.ollama_max_tokens,
         )
+
+    if (
+        cfg.ravens_prompt_type == "instruction"
+        and getattr(task, "uses_choice_only_metrics", False)
+    ):
+        _ensure_repo_on_path(_ravens_repo_root(cfg))
+        from ravens_eval_models import is_qwen3_model
+
+        if is_qwen3_model(model_name):
+            return Qwen3ChoiceOnlyVLLMBackend(model_name, cfg.base_url)
+        return PythiaChoiceOnlyVLLMBackend(model_name, cfg.base_url)
+
     return VLLMBackend(model_name, cfg.base_url)
 
 
@@ -120,6 +165,16 @@ def _systematic_kwargs(task: Task, n_stimuli: int, n_examples: int) -> dict:
     raise TypeError(f"No systematic generation for {type(task).__name__}")
 
 
+def _results_suffix(cfg: Config, task_name: TaskName) -> str | None:
+    if task_name != "ravens_numerical":
+        return None
+    if cfg.ravens_prompt_type == "completion":
+        return "completion"
+    if _resolved_instruction_prompt_mode(cfg) == "choice_only":
+        return "choice_only"
+    return None
+
+
 def run(cfg: Config) -> None:
     from datetime import datetime, timezone
 
@@ -127,9 +182,9 @@ def run(cfg: Config) -> None:
     max_n_examples = max(cfg.n_examples)
 
     for model_name in cfg.models:
-        backend = _make_backend(cfg, model_name)
         for task_name in cfg.tasks:
             task = _instantiate_task(task_name, cfg)
+            backend = _make_backend(cfg, model_name, task)
             # Generate stimuli once per model×task, reuse across n_examples values
             if cfg.n_stimuli is not None:
                 if cfg.systematic and hasattr(task, "systematic_stimuli"):
@@ -152,11 +207,6 @@ def run(cfg: Config) -> None:
                     flush=True,
                 )
                 results = evaluate(task, backend, n_ex, stimuli)
-                results_suffix = (
-                    cfg.ravens_prompt_type
-                    if task_name == "ravens_numerical" and cfg.ravens_prompt_type != "instruction"
-                    else None
-                )
                 path = save_results(
                     results,
                     model_name,
@@ -164,7 +214,7 @@ def run(cfg: Config) -> None:
                     n_ex,
                     results_dir=cfg.results_dir,
                     run_id=run_id,
-                    results_suffix=results_suffix,
+                    results_suffix=_results_suffix(cfg, task_name),
                 )
                 n_correct = sum(r.score.correct for r in results)
                 print(f"{n_correct}/{len(results)} correct → {path}")

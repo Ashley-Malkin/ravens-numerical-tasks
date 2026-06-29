@@ -93,6 +93,21 @@ def model_family(model_id: str) -> str:
     return "other"
 
 
+def is_pythia_model(model_id: str) -> bool:
+    return model_family(model_id) == "pythia"
+
+
+def is_qwen3_model(model_id: str) -> bool:
+    return model_family(model_id) == "qwen3"
+
+
+def resolve_instruction_prompt_mode(mode: str) -> str:
+    """Expand ``auto`` to ``choice_only`` (default for Modal instruction eval)."""
+    if mode == "auto":
+        return "choice_only"
+    return mode
+
+
 def parse_params_billions(model_id: str) -> float | None:
     """Parse parameter count in billions from a HF model id, if recognized."""
     m = _SIZE_RE.search(model_id)
