@@ -13,11 +13,11 @@ Smoke test:
 
     modal run baby_reasoning_eval/modal_eval.py --max-tasks 10 --models EleutherAI/pythia-70m-deduped
 
-Full scaling ladder (120 tasks; appends to ``experiments.md``):
+Full scaling ladder (140 tasks; appends to ``experiments.md``; BabyLM → ``babyLMexperiments.md``):
 
     modal run baby_reasoning_eval/modal_eval.py --models sweep --n-examples 0
 
-Direct remote functions (``::run_ravens_eval_t4``, etc.) skip ``experiments.md`` logging; use the entrypoint above.
+Direct remote functions (``::run_ravens_eval_t4``, etc.) skip experiment logging; use the entrypoint above.
 """
 
 from __future__ import annotations
@@ -41,6 +41,13 @@ _MODAL_EVAL_DIR = Path(__file__).resolve().parent
 REPO_ROOT = _MODAL_EVAL_DIR.parent
 BABY_REASONING_ROOT = _MODAL_EVAL_DIR / "baby-reasoning"
 EXPERIMENTS_MD_LOCAL = _MODAL_EVAL_DIR / "experiments.md"
+BABYLM_EXPERIMENTS_MD_LOCAL = _MODAL_EVAL_DIR / "babyLMexperiments.md"
+
+BABYLM_EXPERIMENTS_PREAMBLE = (
+    "# BabyLM Ravens numerical experiments (Modal / vLLM)\n\n"
+    "Auto-appended by `baby_reasoning_eval/modal_eval.py` for `--models babylm` "
+    "and other BabyLM HuggingFace ids.\n\n"
+)
 
 # Paths inside the Modal container (repo copied here via ``add_local_dir``).
 CONTAINER_RAVENS_ROOT = "/root/ravens"
@@ -66,19 +73,32 @@ def _ensure_ravens_repo_on_path() -> None:
 _ensure_ravens_repo_on_path()
 
 from ravens_eval_models import (  # noqa: E402
+    DEFAULT_BABYLM_VLLM,
+    DEFAULT_MINIBERTA_VLLM,
     DEFAULT_PYTHIA_VLLM,
     DEFAULT_QWEN3_VLLM,
     gpu_tier_for_model,
+    is_babylm_model,
+    is_miniberta_model,
+    is_qwen3_instruct_model,
     is_qwen3_model,
     max_model_len_for_model,
     resolve_instruction_prompt_mode,
     resolve_models_arg,
 )
 
-EXPERIMENT_SETTINGS_NOTE = (
-    "Modal vLLM (`modal_eval.py`); `--max-model-len 2048`; "
-    "T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`"
-)
+def _experiment_settings_note(model_id: str) -> str:
+    if is_miniberta_model(model_id):
+        max_len = max_model_len_for_model(model_id)
+        return (
+            f"Modal HF transformers (`modal_eval.py`); PLL scoring; "
+            f"max_len={max_len}; T4"
+        )
+    max_len = max_model_len_for_model(model_id)
+    return (
+        f"Modal vLLM (`modal_eval.py`); `--max-model-len {max_len}`; "
+        "T4→TRITON_ATTN, A10G→FLASH_ATTN; `temperature=0`"
+    )
 
 DEFAULT_N_EXAMPLES = 0
 PROMPT_TYPES = ("instruction", "completion")
@@ -120,6 +140,7 @@ IGNORE_COPY = [
     "**/node_modules/**",
     "**/.pytest_cache/**",
     "**/experiments.md",
+    "**/babyLMexperiments.md",
 ]
 
 app = modal.App("ravens-baby-reasoning-vllm")
@@ -130,6 +151,8 @@ eval_image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
         "vllm>=0.18.0",
+        "transformers>=4.40",
+        "accelerate>=0.30",
         "requests>=2.31",
         "tyro>=0.9",
         "pandas>=2.3",
@@ -275,7 +298,7 @@ def _build_vllm_serve_cmd(model_id: str, gpu_tier: str) -> list[str]:
         "--max-model-len",
         str(max_len),
     ]
-    if is_qwen3_model(model_id):
+    if is_qwen3_instruct_model(model_id):
         cmd.extend(
             [
                 "--reasoning-parser",
@@ -344,6 +367,121 @@ def _run_baby_reasoning_cli(
             f"No results under {results_root}; expected ravens_numerical/{results_name}"
         )
     return candidates[-1]
+
+
+def _run_hf_baby_reasoning_cli(
+    model_id: str,
+    max_tasks: Optional[int],
+    n_examples: int,
+    prompt_type: str,
+    env: dict[str, str],
+    ravens_prompt_mode: str = "auto",
+) -> Path:
+    """Run baby-reasoning CLI with in-process HuggingFace backend (MiniBERTa)."""
+    if prompt_type not in PROMPT_TYPES:
+        raise ValueError(f"prompt_type must be one of {PROMPT_TYPES}, got {prompt_type!r}")
+
+    cmd = [
+        "python",
+        f"{CONTAINER_BABY_ROOT}/script/run",
+        "--backend",
+        "hf",
+        "--models",
+        model_id,
+        "--tasks",
+        "ravens_numerical",
+        "--ravens-repo-root",
+        CONTAINER_RAVENS_ROOT,
+        "--ravens-tasks-json",
+        CONTAINER_TASKS_JSON,
+        "--n-examples",
+        str(n_examples),
+        "--ravens-prompt-type",
+        prompt_type,
+    ]
+    if prompt_type == "instruction":
+        cmd.extend(["--ravens-prompt-mode", ravens_prompt_mode])
+    if max_tasks is not None:
+        cmd.extend(["--ravens-max-tasks", str(max_tasks)])
+
+    print("Running:", " ".join(cmd), flush=True)
+    subprocess.check_call(cmd, cwd=CONTAINER_BABY_ROOT, env=env)
+
+    results_root = Path(CONTAINER_BABY_ROOT) / "results"
+    instruction_mode = (
+        resolve_instruction_prompt_mode(ravens_prompt_mode)
+        if prompt_type == "instruction"
+        else None
+    )
+    results_name = _results_filename(n_examples, prompt_type, instruction_mode)
+    results_glob = f"**/ravens_numerical/{results_name}"
+    candidates = sorted(
+        results_root.glob(results_glob),
+        key=lambda p: p.stat().st_mtime,
+    )
+    if not candidates:
+        raise FileNotFoundError(
+            f"No results under {results_root}; expected ravens_numerical/{results_name}"
+        )
+    return candidates[-1]
+
+
+def _run_hf_model_eval(
+    model_id: str,
+    max_tasks: Optional[int],
+    gpu_tier: str,
+    n_examples: int = DEFAULT_N_EXAMPLES,
+    prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
+) -> dict[str, Any] | dict[str, dict[str, Any]]:
+    """MiniBERTa eval via HuggingFace transformers (no vLLM server)."""
+    run_types = resolve_prompt_types(prompt_type)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = f"{CONTAINER_RAVENS_ROOT}:{CONTAINER_BABY_ROOT}"
+
+    if len(run_types) == 1:
+        pt = run_types[0]
+        results_path = _run_hf_baby_reasoning_cli(
+            model_id,
+            max_tasks,
+            n_examples,
+            pt,
+            env,
+            ravens_prompt_mode,
+        )
+        summary = _make_model_summary(
+            results_path,
+            model_id=model_id,
+            prompt_type=pt,
+            n_examples=n_examples,
+            gpu_tier=gpu_tier,
+        )
+        print(json.dumps(summary, indent=2), flush=True)
+        hf_cache_volume.commit()
+        return summary
+
+    summaries: dict[str, dict[str, Any]] = {}
+    for pt in run_types:
+        print(f"\n--- prompt_type={pt} ---\n", flush=True)
+        results_path = _run_hf_baby_reasoning_cli(
+            model_id,
+            max_tasks,
+            n_examples,
+            pt,
+            env,
+            ravens_prompt_mode if pt == "instruction" else "auto",
+        )
+        summary = _make_model_summary(
+            results_path,
+            model_id=model_id,
+            prompt_type=pt,
+            n_examples=n_examples,
+            gpu_tier=gpu_tier,
+        )
+        summaries[pt] = summary
+        print(json.dumps(summary, indent=2), flush=True)
+    hf_cache_volume.commit()
+    return summaries
 
 
 def _run_script(
@@ -441,6 +579,16 @@ def _run_model_eval(
     prompt_type: str = "instruction",
     ravens_prompt_mode: str = "auto",
 ) -> dict[str, Any] | dict[str, dict[str, Any]]:
+    if is_miniberta_model(model_id):
+        return _run_hf_model_eval(
+            model_id,
+            max_tasks,
+            gpu_tier,
+            n_examples=n_examples,
+            prompt_type=prompt_type,
+            ravens_prompt_mode=ravens_prompt_mode,
+        )
+
     run_types = resolve_prompt_types(prompt_type)
     served = vllm_served_name or model_id
     env = os.environ.copy()
@@ -502,8 +650,15 @@ def _run_model_eval(
         _stop_vllm_server(proc, log_file, reader)
 
 
+def _experiments_path_for_model(model_id: str) -> Path:
+    if is_babylm_model(model_id):
+        return BABYLM_EXPERIMENTS_MD_LOCAL
+    return EXPERIMENTS_MD_LOCAL
+
+
 def _log_experiment_local(
     *,
+    model_id: str,
     run_label: str,
     model_summaries: dict[str, dict[str, Any]],
     max_tasks: Optional[int],
@@ -512,11 +667,12 @@ def _log_experiment_local(
     ravens_prompt_mode: str = "auto",
     accuracy_delta: Optional[float] = None,
 ) -> None:
-    """Append results to ``experiments.md`` on the local machine (after ``.remote()``)."""
+    """Append results to the local experiments log (after ``.remote()``)."""
     from experiment_log import append_experiment_entry
 
+    experiments_path = _experiments_path_for_model(model_id)
     settings_note = (
-        f"{EXPERIMENT_SETTINGS_NOTE}; `--n-examples {n_examples}`; "
+        f"{_experiment_settings_note(model_id)}; `--n-examples {n_examples}`; "
         f"`--prompt-type {prompt_type}`"
         + (
             f"; `--ravens-prompt-mode {resolve_instruction_prompt_mode(ravens_prompt_mode)}`"
@@ -525,12 +681,17 @@ def _log_experiment_local(
         )
     )
     append_experiment_entry(
-        EXPERIMENTS_MD_LOCAL,
+        experiments_path,
         run_label=run_label,
         model_summaries=model_summaries,
         max_tasks=max_tasks,
         accuracy_delta=accuracy_delta,
         settings_note=settings_note,
+        file_preamble=(
+            BABYLM_EXPERIMENTS_PREAMBLE
+            if experiments_path == BABYLM_EXPERIMENTS_MD_LOCAL
+            else None
+        ),
     )
 
 
@@ -648,6 +809,45 @@ def run_pythia_ravens(
 
 @app.function(
     image=eval_image,
+    gpu="T4",
+    timeout=3600,
+    volumes={"/root/.cache/huggingface": hf_cache_volume},
+)
+def run_babylm_ravens(
+    max_tasks: Optional[int] = None,
+    model_id: str = DEFAULT_BABYLM_VLLM,
+    n_examples: int = DEFAULT_N_EXAMPLES,
+) -> dict[str, Any]:
+    """Evaluate BabyLM GPT-2 baseline on ravens_numerical via in-container vLLM."""
+    return _run_model_eval(model_id, max_tasks, gpu_tier="T4", n_examples=n_examples)
+
+
+@app.function(
+    image=eval_image,
+    gpu="T4",
+    timeout=7200,
+    volumes={"/root/.cache/huggingface": hf_cache_volume},
+)
+def run_miniberta_ravens(
+    max_tasks: Optional[int] = None,
+    model_id: str = DEFAULT_MINIBERTA_VLLM,
+    n_examples: int = DEFAULT_N_EXAMPLES,
+    prompt_type: str = "instruction",
+    ravens_prompt_mode: str = "auto",
+) -> dict[str, Any]:
+    """Evaluate MiniBERTa RoBERTa on ravens_numerical via in-container HuggingFace."""
+    return _run_model_eval(
+        model_id,
+        max_tasks,
+        gpu_tier="T4",
+        n_examples=n_examples,
+        prompt_type=prompt_type,
+        ravens_prompt_mode=ravens_prompt_mode,
+    )
+
+
+@app.function(
+    image=eval_image,
     gpu="A10G",
     timeout=7200,
     volumes={"/root/.cache/huggingface": hf_cache_volume},
@@ -692,7 +892,7 @@ def run_compare_ravens(
 
 @app.local_entrypoint()
 def main(
-    max_tasks: Optional[int] = 120,
+    max_tasks: Optional[int] = 140,
     models: str = "sweep",
     n_examples: int = DEFAULT_N_EXAMPLES,
     prompt_type: str = "instruction",
@@ -701,13 +901,15 @@ def main(
     """Local entry: ``modal run baby_reasoning_eval/modal_eval.py --models sweep``.
 
     ``--models`` accepts a HuggingFace id, comma-separated ids, or aliases:
-    ``sweep`` (full scaling ladder), ``pythia``, ``qwen3``.
+    ``sweep`` (full scaling ladder), ``pythia``, ``qwen3``, ``babylm``, ``miniberta``.
 
     ``--prompt-type`` is ``instruction`` (letter MCQ; default), ``completion``
     (bracket fill-in, baby-reasoning / matrix_easy style), or ``both`` (runs each
-    sequentially in one vLLM session per model).
+    sequentially in one vLLM session per model; MiniBERTa uses HF without vLLM).
 
-    Appends results to ``baby_reasoning_eval/experiments.md`` after each model.
+    Appends results to ``baby_reasoning_eval/experiments.md`` after each model
+    (BabyLM models → ``baby_reasoning_eval/babyLMexperiments.md``; MiniBERTa →
+    ``experiments.md``).
     """
     if prompt_type not in PROMPT_TYPE_CLI:
         raise ValueError(
@@ -739,6 +941,7 @@ def main(
             all_results[model_id] = summary
             for pt, pt_summary in summary.items():
                 _log_experiment_local(
+                    model_id=model_id,
                     run_label=f"run_ravens_eval ({safe_key}, {pt})",
                     model_summaries={safe_key: pt_summary},
                     max_tasks=max_tasks,
@@ -750,6 +953,7 @@ def main(
             assert isinstance(summary, dict) and "prompt_type" in summary
             all_results[model_id] = summary
             _log_experiment_local(
+                model_id=model_id,
                 run_label=f"run_ravens_eval ({safe_key}, {prompt_type})",
                 model_summaries={safe_key: summary},
                 max_tasks=max_tasks,

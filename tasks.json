@@ -29,6 +29,34 @@
       "correct_letter": "B"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          18,
+          18,
+          18
+        ],
+        [
+          20,
+          20,
+          20
+        ],
+        [
+          12,
+          12,
+          null
+        ]
+      ],
+      "answer_options": [
+        14,
+        20,
+        10,
+        12
+      ],
+      "correct_index": 3,
+      "correct_letter": "D"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -278,6 +306,34 @@
       ],
       "correct_index": 0,
       "correct_letter": "A"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          6,
+          6,
+          6
+        ],
+        [
+          19,
+          19,
+          19
+        ],
+        [
+          3,
+          3,
+          null
+        ]
+      ],
+      "answer_options": [
+        6,
+        1,
+        3,
+        2
+      ],
+      "correct_index": 2,
+      "correct_letter": "C"
     },
     {
       "task_type": "pattern",
@@ -532,6 +588,34 @@
       "correct_letter": "D"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          14,
+          14,
+          14
+        ],
+        [
+          8,
+          8,
+          8
+        ],
+        [
+          10,
+          10,
+          null
+        ]
+      ],
+      "answer_options": [
+        11,
+        8,
+        10,
+        12
+      ],
+      "correct_index": 2,
+      "correct_letter": "C"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -782,6 +866,34 @@
       ],
       "correct_index": 2,
       "correct_letter": "C"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          17,
+          17,
+          17
+        ],
+        [
+          18,
+          18,
+          18
+        ],
+        [
+          7,
+          7,
+          null
+        ]
+      ],
+      "answer_options": [
+        6,
+        7,
+        5,
+        17
+      ],
+      "correct_index": 1,
+      "correct_letter": "B"
     },
     {
       "task_type": "pattern",
@@ -1035,6 +1147,34 @@
       "correct_letter": "D"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          16,
+          16,
+          16
+        ],
+        [
+          20,
+          20,
+          20
+        ],
+        [
+          17,
+          17,
+          null
+        ]
+      ],
+      "answer_options": [
+        17,
+        16,
+        15,
+        18
+      ],
+      "correct_index": 0,
+      "correct_letter": "A"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -1284,6 +1424,34 @@
       ],
       "correct_index": 0,
       "correct_letter": "A"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          16,
+          16,
+          16
+        ],
+        [
+          18,
+          18,
+          18
+        ],
+        [
+          1,
+          1,
+          null
+        ]
+      ],
+      "answer_options": [
+        16,
+        3,
+        4,
+        1
+      ],
+      "correct_index": 3,
+      "correct_letter": "D"
     },
     {
       "task_type": "pattern",
@@ -1538,6 +1706,34 @@
       "correct_letter": "D"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          8,
+          8,
+          8
+        ],
+        [
+          18,
+          18,
+          18
+        ],
+        [
+          15,
+          15,
+          null
+        ]
+      ],
+      "answer_options": [
+        16,
+        8,
+        15,
+        13
+      ],
+      "correct_index": 2,
+      "correct_letter": "C"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -1789,6 +1985,34 @@
       "correct_letter": "D"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          12,
+          12,
+          12
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          1,
+          1,
+          null
+        ]
+      ],
+      "answer_options": [
+        1,
+        12,
+        2,
+        3
+      ],
+      "correct_index": 0,
+      "correct_letter": "A"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -2038,6 +2262,34 @@
       ],
       "correct_index": 1,
       "correct_letter": "B"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          8,
+          8,
+          8
+        ],
+        [
+          7,
+          7,
+          7
+        ],
+        [
+          15,
+          15,
+          null
+        ]
+      ],
+      "answer_options": [
+        8,
+        13,
+        15,
+        16
+      ],
+      "correct_index": 2,
+      "correct_letter": "C"
     },
     {
       "task_type": "pattern",
@@ -2291,6 +2543,34 @@
       "correct_letter": "A"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          18,
+          18,
+          18
+        ],
+        [
+          16,
+          16,
+          null
+        ]
+      ],
+      "answer_options": [
+        15,
+        18,
+        16,
+        14
+      ],
+      "correct_index": 2,
+      "correct_letter": "C"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -2543,6 +2823,34 @@
       "correct_letter": "B"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          9,
+          9,
+          9
+        ],
+        [
+          18,
+          18,
+          18
+        ],
+        [
+          6,
+          6,
+          null
+        ]
+      ],
+      "answer_options": [
+        6,
+        18,
+        7,
+        5
+      ],
+      "correct_index": 0,
+      "correct_letter": "A"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -2790,6 +3098,34 @@
         4,
         6,
         5
+      ],
+      "correct_index": 1,
+      "correct_letter": "B"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          16,
+          16,
+          16
+        ],
+        [
+          13,
+          13,
+          13
+        ],
+        [
+          17,
+          17,
+          null
+        ]
+      ],
+      "answer_options": [
+        19,
+        17,
+        18,
+        16
       ],
       "correct_index": 1,
       "correct_letter": "B"
@@ -3046,6 +3382,34 @@
       "correct_letter": "D"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          11,
+          11,
+          11
+        ],
+        [
+          13,
+          13,
+          13
+        ],
+        [
+          15,
+          15,
+          null
+        ]
+      ],
+      "answer_options": [
+        15,
+        11,
+        16,
+        14
+      ],
+      "correct_index": 0,
+      "correct_letter": "A"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -3297,6 +3661,34 @@
       "correct_letter": "B"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          12,
+          12,
+          12
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          9,
+          9,
+          null
+        ]
+      ],
+      "answer_options": [
+        7,
+        12,
+        9,
+        10
+      ],
+      "correct_index": 2,
+      "correct_letter": "C"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -3543,6 +3935,34 @@
         11,
         10,
         9
+      ],
+      "correct_index": 3,
+      "correct_letter": "D"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          7,
+          7,
+          7
+        ],
+        [
+          20,
+          20,
+          20
+        ],
+        [
+          11,
+          11,
+          null
+        ]
+      ],
+      "answer_options": [
+        13,
+        7,
+        10,
+        11
       ],
       "correct_index": 3,
       "correct_letter": "D"
@@ -3799,6 +4219,34 @@
       "correct_letter": "B"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          9,
+          9,
+          9
+        ],
+        [
+          19,
+          19,
+          19
+        ],
+        [
+          12,
+          12,
+          null
+        ]
+      ],
+      "answer_options": [
+        11,
+        19,
+        10,
+        12
+      ],
+      "correct_index": 3,
+      "correct_letter": "D"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -4049,6 +4497,34 @@
       ],
       "correct_index": 2,
       "correct_letter": "C"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          7,
+          7,
+          7
+        ],
+        [
+          10,
+          10,
+          10
+        ],
+        [
+          14,
+          14,
+          null
+        ]
+      ],
+      "answer_options": [
+        12,
+        14,
+        15,
+        10
+      ],
+      "correct_index": 1,
+      "correct_letter": "B"
     },
     {
       "task_type": "pattern",
@@ -4302,6 +4778,34 @@
       "correct_letter": "B"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          18,
+          18,
+          18
+        ],
+        [
+          14,
+          14,
+          14
+        ],
+        [
+          10,
+          10,
+          null
+        ]
+      ],
+      "answer_options": [
+        18,
+        11,
+        12,
+        10
+      ],
+      "correct_index": 3,
+      "correct_letter": "D"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -4553,6 +5057,34 @@
       "correct_letter": "C"
     },
     {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          4,
+          4,
+          4
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          7,
+          7,
+          null
+        ]
+      ],
+      "answer_options": [
+        6,
+        8,
+        4,
+        7
+      ],
+      "correct_index": 3,
+      "correct_letter": "D"
+    },
+    {
       "task_type": "pattern",
       "matrix": [
         [
@@ -4799,6 +5331,34 @@
         17,
         15,
         13
+      ],
+      "correct_index": 2,
+      "correct_letter": "C"
+    },
+    {
+      "task_type": "constancy_row",
+      "matrix": [
+        [
+          6,
+          6,
+          6
+        ],
+        [
+          12,
+          12,
+          12
+        ],
+        [
+          10,
+          10,
+          null
+        ]
+      ],
+      "answer_options": [
+        9,
+        8,
+        10,
+        6
       ],
       "correct_index": 2,
       "correct_letter": "C"

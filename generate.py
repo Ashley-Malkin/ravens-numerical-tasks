@@ -7,12 +7,15 @@ import random
 import sys
 
 from generator import (
+    LETTERS,
+    generate_constancy_row_task,
     generate_constancy_task,
     generate_combine_task,
     generate_intersection_task,
     generate_pattern_task,
     generate_pattern_tuple_task,
     generate_progression_task,
+    _expand_task_to_3x3,
 )
 
 
@@ -30,6 +33,7 @@ def main() -> None:
         "--type",
         choices=[
             "constancy",
+            "constancy_row",
             "pattern",
             "pattern_tuple",
             "progression",
@@ -39,7 +43,7 @@ def main() -> None:
             "all",
         ],
         default="both",
-        help="Task type: constancy, pattern, pattern_tuple, progression, combine, intersection, both, or all (default: both)",
+        help="Task type: constancy, constancy_row, pattern, pattern_tuple, progression, combine, intersection, both, or all (default: both)",
     )
     parser.add_argument(
         "--min",
@@ -78,6 +82,8 @@ def main() -> None:
     type_sequence: list[str] = []
     if args.type == "constancy":
         type_sequence = ["constancy"] * args.count
+    elif args.type == "constancy_row":
+        type_sequence = ["constancy_row"] * args.count
     elif args.type == "pattern":
         type_sequence = ["pattern"] * args.count
     elif args.type == "pattern_tuple":
@@ -94,6 +100,7 @@ def main() -> None:
     else:  # all
         cycle = [
             "constancy",
+            "constancy_row",
             "pattern",
             "pattern_tuple",
             "progression",
@@ -108,16 +115,24 @@ def main() -> None:
             task = generate_constancy_task(
                 min_val=args.min, max_val=args.max, rng=rng
             )
+            task = _expand_task_to_3x3(task)
+        elif task_type == "constancy_row":
+            task = generate_constancy_row_task(
+                min_val=args.min, max_val=args.max, rng=rng
+            )
         elif task_type == "pattern":
             task = generate_pattern_task(
                 min_val=args.min, max_val=args.max, rng=rng
             )
+            task = _expand_task_to_3x3(task)
         elif task_type == "pattern_tuple":
             task = generate_pattern_tuple_task(rng=rng)
+            task = _expand_task_to_3x3(task)
         elif task_type == "progression":
             task = generate_progression_task(
                 min_val=args.min, max_val=args.max, rng=rng
             )
+            task = _expand_task_to_3x3(task)
         elif task_type == "combine":
             task = generate_combine_task(rng=rng)
         elif task_type == "intersection":
@@ -126,6 +141,7 @@ def main() -> None:
             )
         else:
             raise ValueError(f"unknown task type: {task_type!r}")
+        task["correct_letter"] = LETTERS[task["correct_index"]]
         tasks.append(task)
 
     with open(args.output, "w") as f:

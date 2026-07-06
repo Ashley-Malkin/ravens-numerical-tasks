@@ -9,6 +9,7 @@ from baby_reasoning.cli import Config, _make_backend, _results_suffix
 from baby_reasoning.model import (
     PythiaChoiceOnlyVLLMBackend,
     Qwen3ChoiceOnlyVLLMBackend,
+    RobertaMLMBackend,
     strip_qwen_thinking,
 )
 from baby_reasoning.runner import evaluate
@@ -58,6 +59,19 @@ def test_make_backend_selects_family():
 
     cfg.models = ["Qwen/Qwen3-8B"]
     assert isinstance(_make_backend(cfg, cfg.models[0], task), Qwen3ChoiceOnlyVLLMBackend)
+
+    cfg.models = ["Qwen/Qwen3-8B-Base"]
+    assert isinstance(_make_backend(cfg, cfg.models[0], task), PythiaChoiceOnlyVLLMBackend)
+
+    cfg.models = ["BabyLM-community/babylm-baseline-10m-gpt2"]
+    assert isinstance(_make_backend(cfg, cfg.models[0], task), PythiaChoiceOnlyVLLMBackend)
+
+    cfg.models = ["nyu-mll/roberta-base-100M-1"]
+    cfg.backend = "vllm"
+    assert isinstance(_make_backend(cfg, cfg.models[0], task), RobertaMLMBackend)
+
+    cfg.backend = "hf"
+    assert isinstance(_make_backend(cfg, cfg.models[0], task), RobertaMLMBackend)
 
 
 def test_strip_qwen_thinking():
@@ -115,7 +129,8 @@ class _StubChoiceBackend(ModelBackend):
     def model(self) -> str:
         return self._model
 
-    def generate(self, prompt: str) -> ModelResponse:
+    def generate(self, prompt: str, **kwargs) -> ModelResponse:
+        _ = kwargs
         raw = {
             "choices": [
                 {

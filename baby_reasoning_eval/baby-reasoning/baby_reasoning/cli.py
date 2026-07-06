@@ -9,6 +9,7 @@ from baby_reasoning.model import (
     OllamaBackend,
     PythiaChoiceOnlyVLLMBackend,
     Qwen3ChoiceOnlyVLLMBackend,
+    RobertaMLMBackend,
     VLLMBackend,
 )
 from baby_reasoning.runner import evaluate, save_results
@@ -35,7 +36,7 @@ TaskName = Literal[
 ]
 
 
-BackendName = Literal["vllm", "ollama"]
+BackendName = Literal["vllm", "ollama", "hf"]
 InstructionPromptMode = Literal["auto", "plain", "choice_only", "cot_choice"]
 
 
@@ -59,7 +60,10 @@ class Config:
     """Model ids: Hugging Face ids for vLLM (e.g. EleutherAI/pythia-70m-deduped), Ollama names for ``ollama`` (e.g. qwen3:8b)."""
 
     backend: BackendName = "vllm"
-    """``vllm``: OpenAI-compatible completions API. ``ollama``: ``/api/generate`` (Qwen3, etc.)."""
+    """``vllm``: OpenAI-compatible completions API. ``ollama``: ``/api/generate``. ``hf``: in-process HuggingFace (MiniBERTa)."""
+
+    hf_device: str = "cuda"
+    """Device for ``hf`` backend (``cuda`` or ``cpu``)."""
 
     tasks: list[TaskName] = field(
         default_factory=lambda: ["rules", "hierarchical", "matrix"]
@@ -142,15 +146,33 @@ def _make_backend(cfg: Config, model_name: str, task: Task) -> ModelBackend:
             max_tokens=cfg.ollama_max_tokens,
         )
 
+    _ensure_repo_on_path(_ravens_repo_root(cfg))
+    from ravens_eval_models import (
+        is_miniberta_model,
+        is_qwen3_base_model,
+        is_qwen3_instruct_model,
+    )
+
+    if cfg.backend == "hf" or is_miniberta_model(model_name):
+        prompt_mode = (
+            _resolved_instruction_prompt_mode(cfg)
+            if cfg.ravens_prompt_type == "instruction"
+            else "plain"
+        )
+        return RobertaMLMBackend(
+            model_name,
+            device=cfg.hf_device,
+            prompt_type=cfg.ravens_prompt_type,
+            prompt_mode=prompt_mode,
+        )
+
     if (
         cfg.ravens_prompt_type == "instruction"
         and getattr(task, "uses_choice_only_metrics", False)
     ):
-        _ensure_repo_on_path(_ravens_repo_root(cfg))
-        from ravens_eval_models import is_qwen3_model
-
-        if is_qwen3_model(model_name):
+        if is_qwen3_instruct_model(model_name):
             return Qwen3ChoiceOnlyVLLMBackend(model_name, cfg.base_url)
+        # Pythia, BabyLM, Qwen3-Base, and other completions + guided JSON models.
         return PythiaChoiceOnlyVLLMBackend(model_name, cfg.base_url)
 
     return VLLMBackend(model_name, cfg.base_url)

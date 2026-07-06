@@ -24,6 +24,7 @@ env/
 # OS / editor
 .DS_Store
 .cursor/
+.matplotlib/
 
 # Eval outputs (regenerated)
 baby_reasoning_eval/baby-reasoning/results/

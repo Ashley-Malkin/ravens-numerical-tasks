@@ -42,6 +42,22 @@ vllm serve EleutherAI/pythia-70m-deduped --host 0.0.0.0 --port 8000
 ./run_qwen3_ravens.sh
 ```
 
+### BabyLM GPT-2 baselines (vLLM)
+
+```bash
+vllm serve BabyLM-community/babylm-baseline-10m-gpt2 --host 0.0.0.0 --port 8000
+./run_babylm_ravens.sh
+# or: MODEL=BabyLM-community/babylm-baseline-100m-gpt2 ./run_babylm_ravens.sh
+```
+
+### MiniBERTa RoBERTa (HuggingFace, no vLLM)
+
+```bash
+./run_miniberta_ravens.sh
+# or: MODEL=nyu-mll/roberta-base-100M-1 MAX_TASKS=10 ./run_miniberta_ravens.sh
+# completion: PROMPT_TYPE=completion ./run_miniberta_ravens.sh
+```
+
 ### Both in sequence (full suite)
 
 ```bash
@@ -84,7 +100,7 @@ uv run script/run \
 
 | Flag | Purpose |
 |------|---------|
-| `--ravens-max-tasks N` | Only first N problems (smoke tests). |
+| `--ravens-max-tasks N` | Only first N problems (smoke tests; round-robin order includes all 7 task types when N≥7). |
 | `--ravens-repo-root` | Ravens repo root (contains `ravens_prompts.py`). |
 | `--ravens-tasks-json` | Path to JSON (default `<ravens-repo-root>/tasks.json`). |
 | `--ollama-timeout` | Seconds per Ollama request (default 300). |
@@ -97,7 +113,7 @@ Results are written under **`baby-reasoning/results/`**. Completion runs use `{n
 ## Prompting and scoring
 
 - **`instruction`** (default): prompts match **`evaluate.py` plain mode** (letter **A–D**); scoring uses **`ravens_answer_parse.parse_answer`**.
-- **`completion`**: bracketed 3×3 grid ending in `[` (same format as benpry **`matrix_easy`**); model fills the blank cell; same 120 tasks and answer options; scoring compares text before `]` to the correct option value (`combine` / `intersection` are set-wise).
+- **`completion`**: bracketed 3×3 grid ending in `[` (same format as benpry **`matrix_easy`**); model fills the blank cell; same 140 tasks and answer options; scoring compares text before `]` to the correct option value (`combine` / `intersection` are set-wise).
 
 ## Modal (Option A: vLLM inside GPU container)
 
@@ -118,16 +134,24 @@ From the **ravens-numerical-tasks repo root**:
 |-------|---------|
 | `EleutherAI/pythia-70m-deduped` | One model |
 | `id1,id2,...` | Comma-separated list, run each sequentially |
-| `sweep` | Full scaling ladder (8 Pythia + 5 Qwen3 from [`ravens_eval_models.py`](../ravens_eval_models.py)) |
+| `sweep` | Full scaling ladder (8 Pythia + 6 Qwen3 from [`ravens_eval_models.py`](../ravens_eval_models.py)) |
 | `pythia` | Pythia subset only |
-| `qwen3` | Qwen3 subset only |
+| `qwen3` | Qwen3 subset (0.6B–14B instruct + `Qwen/Qwen3-8B-Base`) |
+| `babylm` | Both BabyLM 124M GPT-2 baselines (10M- and 100M-word corpora) |
+| `miniberta` | All 12 nyu-mll MiniBERTa RoBERTa checkpoints (1M/10M/100M/1B tokens × 3 seeds) |
+
+BabyLM models use the same GPT-2 / completions vLLM path as Pythia (instruction `choice_only` via guided JSON; completion via bracket fill-in). Not included in `sweep`.
+
+MiniBERTa models are RoBERTa masked LMs evaluated via an in-process HuggingFace backend (PLL scoring, 512-token context). They log to [`experiments.md`](experiments.md), not `babyLMexperiments.md`. Not included in `sweep`.
+
+**Qwen3 instruct vs base:** `Qwen/Qwen3-8B` is post-trained (chat / thinking off for eval). `Qwen/Qwen3-8B-Base` is pretraining-only; instruction `choice_only` uses completions + guided JSON (Pythia path), not chat. Both appear at 8B on scaling plots.
 
 ```bash
 # Smoke test (10 tasks, one small model)
 modal run baby_reasoning_eval/modal_eval.py \
   --max-tasks 10 --models EleutherAI/pythia-70m-deduped --n-examples 0
 
-# Full scaling ladder (120 tasks; logs each model to experiments.md)
+# Full scaling ladder (140 tasks; logs each model to experiments.md)
 modal run baby_reasoning_eval/modal_eval.py --models sweep --n-examples 0
 
 # Same ladder with completion-style prompts (benpry / matrix_easy format)
@@ -146,6 +170,20 @@ modal run baby_reasoning_eval/modal_eval.py \
 modal run baby_reasoning_eval/modal_eval.py \
   --models EleutherAI/pythia-410m-deduped,Qwen/Qwen3-4B --n-examples 0
 
+# BabyLM baselines (124M GPT-2; 10M- vs 100M-word training corpora; all 140 tasks incl. constancy_row)
+modal run baby_reasoning_eval/modal_eval.py --models babylm --n-examples 0 --prompt-type instruction
+modal run baby_reasoning_eval/modal_eval.py --models babylm --n-examples 1 --prompt-type instruction
+modal run baby_reasoning_eval/modal_eval.py \
+  --models BabyLM-community/babylm-baseline-100m-gpt2 --n-examples 1 --prompt-type completion
+
+# MiniBERTa RoBERTa ladder (HF backend; 12 checkpoints; logs to experiments.md)
+modal run baby_reasoning_eval/modal_eval.py \
+  --models nyu-mll/roberta-med-small-1M-1 --max-tasks 10 --n-examples 0
+modal run baby_reasoning_eval/modal_eval.py \
+  --models miniberta --n-examples 0 --prompt-type instruction
+modal run baby_reasoning_eval/modal_eval.py \
+  --models miniberta --n-examples 0 --prompt-type completion
+
 # Optional: ICL on full ladder
 modal run baby_reasoning_eval/modal_eval.py --models sweep --n-examples 3
 ```
@@ -156,16 +194,18 @@ Use `--n-examples 0` (zero-shot), `1` (one ICL demo), or `3` (all three demos).
 |------|--------|
 | `--prompt-type` | `instruction` (default), `completion`, or `both` (instruction then completion per model, one vLLM load) |
 
-Successful runs via the **entrypoint** (without `::`) append accuracy to [`experiments.md`](experiments.md).
+Successful runs via the **entrypoint** (without `::`) append accuracy to [`experiments.md`](experiments.md) (Pythia/Qwen3/MiniBERTa) or [`babyLMexperiments.md`](babyLMexperiments.md) (BabyLM models and `--models babylm`).
 
 GPU tier is chosen per model (`T4` for ≤1.4B, `A10G` for mid-size, `A100` for ≥10B such as Pythia-12B and Qwen3-14B); see `MODEL_GPU_TIER` in [`ravens_eval_models.py`](../ravens_eval_models.py). HF weights are cached on Modal volume **`ravens-hf-cache`**. Decoding uses **`temperature=0`** via vLLM.
 
-Legacy direct remote functions (no `experiments.md` update):
+Legacy direct remote functions (no experiment log update):
 
 ```bash
 modal run baby_reasoning_eval/modal_eval.py::run_compare_ravens --max-tasks 10
 modal run baby_reasoning_eval/modal_eval.py::run_pythia_ravens --max-tasks 10
 modal run baby_reasoning_eval/modal_eval.py::run_qwen3_ravens --max-tasks 10
+modal run baby_reasoning_eval/modal_eval.py::run_babylm_ravens --max-tasks 10
+modal run baby_reasoning_eval/modal_eval.py::run_miniberta_ravens --max-tasks 10
 ```
 
 ### Aggregate scaling results
@@ -182,7 +222,7 @@ python baby_reasoning_eval/aggregate_results.py
 
 | Setting | Recommended |
 |---------|-------------|
-| Tasks | All 120 (omit `--max-tasks` for real numbers) |
+| Tasks | All 140 (omit `--max-tasks` for real numbers) |
 | `n_examples` | `0` primary; `3` optional for ICL |
 | Backend | Modal + vLLM + HF ids (both families) |
 | Chance baseline | 25% (4-way MCQ; computed in aggregate output) |

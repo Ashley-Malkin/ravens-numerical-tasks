@@ -84,7 +84,7 @@ def evaluate(
 
     for stimulus in stimuli:
         prompt = task.build_prompt(stimulus, n_examples)
-        response = backend.generate(prompt)
+        response = backend.generate(prompt, stimulus=stimulus, task=task)
         correct = task.score(response, stimulus)
         logprob_argmax_correct, brier = _choice_only_metrics(task, response, stimulus)
 

@@ -67,6 +67,23 @@ IN_CONTEXT_EXAMPLES: dict[str, list[IclExample]] = {
             "correct_letter": "B",
         },
     ],
+    "constancy_row": [
+        {
+            "matrix": [[9, 9, 9], [18, 18, 18], [10, 10, None]],
+            "answer_options": [12, 10, 8, 18],
+            "correct_letter": "B",
+        },
+        {
+            "matrix": [[1, 1, 1], [5, 5, 5], [13, 13, None]],
+            "answer_options": [1, 13, 15, 12],
+            "correct_letter": "B",
+        },
+        {
+            "matrix": [[16, 16, 16], [5, 5, 5], [8, 8, None]],
+            "answer_options": [10, 5, 6, 8],
+            "correct_letter": "D",
+        },
+    ],
     "pattern": [
         {
             "matrix": [[8, 11, 11], [8, 11, 11], [8, 11, None]],

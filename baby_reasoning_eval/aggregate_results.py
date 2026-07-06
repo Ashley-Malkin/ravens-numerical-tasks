@@ -214,7 +214,7 @@ def write_markdown(rows: list[dict], out_path: Path) -> None:
     for (n_examples,) in sorted(by_setting):
         lines.append(f"## n_examples={n_examples}")
         lines.append("")
-        for family in ("pythia", "qwen3"):
+        for family in ("pythia", "qwen3", "babylm"):
             family_rows = [
                 r for r in by_setting[(n_examples,)] if r["family"] == family
             ]

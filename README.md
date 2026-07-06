@@ -109,6 +109,20 @@ Each row has two **pairs** (length-2 lists) that share **exactly one** element. 
 - **Rule:** In each row, `|col1 ∩ col2| = 1`; column 3 is that intersection.
 - **Answer options:** Four **integers**: the correct shared element plus three distractors. Distractors are any other values in the generator’s digit range (`--min` / `--max`), chosen the same way as constancy/pattern (nearby numbers, then fill from the range).
 
+### 7. Row Constancy (3×3)
+
+Each row holds a constant value; the blank is the missing value in the last row.
+
+```
+| 3 | 3 | 3 |
+| 1 | 1 | 1 |
+| 2 | 2 | ? |   → correct answer: 2
+```
+
+- **Matrix:** 3×3; each row is constant; blank at (2, 2)
+- **Correct answer:** The constant value for row 2
+- **Distractors:** One value from another row, plus two nearby numbers in range
+
 ## Usage
 
 ```bash
@@ -120,7 +134,7 @@ python generate.py --count 50 --type both --min 1 --max 20 --output tasks.json
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--count` | Number of tasks to generate | 10 |
-| `--type` | `constancy`, `pattern`, `pattern_tuple`, `progression`, `combine`, `intersection`, `both`, or `all` | both |
+| `--type` | `constancy`, `constancy_row`, `pattern`, `pattern_tuple`, `progression`, `combine`, `intersection`, `both`, or `all` | both |
 | `--min` | Minimum number in matrix range | 1 |
 | `--max` | Maximum number in matrix range | 20 |
 | `--output` | Output JSON file path | tasks.json |

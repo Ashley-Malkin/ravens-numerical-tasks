@@ -25,13 +25,13 @@ def _import_choice_logprobs():
     return CHOICE_ONLY_FORMAT
 
 
-def _import_is_qwen3():
+def _import_is_qwen3_instruct():
     root = str(_repo_root())
     if root not in sys.path:
         sys.path.insert(0, root)
-    from ravens_eval_models import is_qwen3_model
+    from ravens_eval_models import is_qwen3_instruct_model
 
-    return is_qwen3_model
+    return is_qwen3_instruct_model
 
 
 def strip_qwen_thinking(text: str) -> str:
@@ -69,7 +69,8 @@ class OllamaBackend(ModelBackend):
         response.raise_for_status()
         return response.json()
 
-    def generate(self, prompt: str) -> ModelResponse:
+    def generate(self, prompt: str, **kwargs) -> ModelResponse:
+        _ = kwargs
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -97,7 +98,7 @@ class VLLMBackend(ModelBackend):
     def __init__(self, model: str, base_url: str = "http://localhost:8000") -> None:
         self._model = model
         self.base_url = base_url.rstrip("/")
-        self._is_qwen3 = _import_is_qwen3()(model)
+        self._is_qwen3_instruct = _import_is_qwen3_instruct()(model)
 
     @property
     def model(self) -> str:
@@ -112,7 +113,8 @@ class VLLMBackend(ModelBackend):
         response.raise_for_status()
         return response.json()
 
-    def generate(self, prompt: str) -> ModelResponse:
+    def generate(self, prompt: str, **kwargs) -> ModelResponse:
+        _ = kwargs
         data = self._post(
             "/v1/completions",
             {
@@ -131,7 +133,7 @@ class VLLMBackend(ModelBackend):
             else None
         )
         text = choice.get("text", "").rstrip()
-        if self._is_qwen3:
+        if self._is_qwen3_instruct:
             text = strip_qwen_thinking(text)
         return ModelResponse(
             text=text,
@@ -220,7 +222,8 @@ class ChoiceOnlyVLLMBackend(ModelBackend):
                 return str(content).strip()
         return str(choice.get("text", "")).strip()
 
-    def generate(self, prompt: str) -> ModelResponse:
+    def generate(self, prompt: str, **kwargs) -> ModelResponse:
+        _ = kwargs
         data = self._post(self._build_generate_payload(prompt))
         choice = data["choices"][0]
         logprobs_data = choice.get("logprobs")
@@ -238,7 +241,7 @@ class ChoiceOnlyVLLMBackend(ModelBackend):
 
 
 class PythiaChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
-    """Pythia instruction: completions API + guided JSON."""
+    """GPT-2 style instruction (Pythia, BabyLM): completions API + guided JSON."""
 
 
 class Qwen3ChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
@@ -257,3 +260,156 @@ class Qwen3ChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
             "response_format": self._response_format_payload(),
             "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
         }
+
+
+def _import_max_model_len():
+    root = str(_repo_root())
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from ravens_eval_models import max_model_len_for_model
+
+    return max_model_len_for_model
+
+
+def _import_mlm_scoring():
+    root = str(_repo_root())
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from ravens_mlm_scoring import score_completion_span, score_sequence
+
+    return score_completion_span, score_sequence
+
+
+def _choice_suffix(letter: str, *, cot: bool = False) -> str:
+    if cot:
+        return f'\n{{"reasoning":"","choice":"{letter}"}}'
+    return f'\n{{"choice":"{letter}"}}'
+
+
+def _build_synthetic_choice_raw(text: str, logprobs_by_letter: dict[str, float]) -> dict:
+    """vLLM-shaped response so ``parse_logprobs_by_letter_vllm`` works."""
+    m = re.search(r'(?i)"choice"\s*:\s*"\s*([ABCD])', text.strip())
+    chosen = m.group(1).upper() if m else "A"
+    prefix = text[: m.start(1)] if m else '{"choice":"'
+    suffix = text[m.end(1) :] if m else '"}'
+    tokens = [prefix, chosen, suffix]
+    lps = [0.0, logprobs_by_letter.get(chosen, 0.0), 0.0]
+    top_logprobs: list = [None, {ltr: logprobs_by_letter[ltr] for ltr in "ABCD"}, None]
+    return {
+        "choices": [
+            {
+                "text": text,
+                "logprobs": {
+                    "tokens": tokens,
+                    "token_logprobs": lps,
+                    "top_logprobs": top_logprobs,
+                },
+            }
+        ]
+    }
+
+
+class RobertaMLMBackend(ModelBackend):
+    """RoBERTa masked LM (MiniBERTa): PLL scoring via HuggingFace transformers."""
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        device: str = "cuda",
+        prompt_type: str = "instruction",
+        prompt_mode: str = "choice_only",
+    ) -> None:
+        self._model_id = model
+        self._device = device
+        self._prompt_type = prompt_type
+        self._prompt_mode = prompt_mode
+        self._model = None
+        self._tokenizer = None
+        self._max_length = _import_max_model_len()(model)
+
+    @property
+    def model(self) -> str:
+        return self._model_id
+
+    def _ensure_loaded(self) -> None:
+        if self._model is not None:
+            return
+        import torch
+        from transformers import AutoModelForMaskedLM, AutoTokenizer
+
+        self._tokenizer = AutoTokenizer.from_pretrained(self._model_id)
+        self._model = AutoModelForMaskedLM.from_pretrained(self._model_id)
+        if getattr(self._model.config, "mask_token_id", None) is None:
+            mask_id = self._tokenizer.mask_token_id
+            if mask_id is None:
+                raise ValueError(f"No mask token for {self._model_id}")
+            self._model.config.mask_token_id = mask_id
+        if self._device == "cuda" and torch.cuda.is_available():
+            self._model = self._model.to("cuda")
+        else:
+            self._device = "cpu"
+            self._model = self._model.to("cpu")
+        self._model.eval()
+
+    def score_completion(self, prompt: str, completion: str) -> float | None:
+        self._ensure_loaded()
+        score_completion_span, _ = _import_mlm_scoring()
+        return score_completion_span(
+            self._model,
+            self._tokenizer,
+            prompt,
+            completion,
+            max_length=self._max_length,
+        )
+
+    def _score_instruction_letters(self, prompt: str) -> tuple[str, dict[str, float]]:
+        self._ensure_loaded()
+        _, score_sequence = _import_mlm_scoring()
+        cot = self._prompt_mode == "cot_choice"
+        scores: dict[str, float] = {}
+        for letter in "ABCD":
+            suffix = _choice_suffix(letter, cot=cot)
+            scores[letter] = score_sequence(
+                self._model,
+                self._tokenizer,
+                prompt + suffix,
+                max_length=self._max_length,
+            )
+        best = max("ABCD", key=lambda c: scores[c])
+        if cot:
+            text = f'{{"reasoning":"","choice":"{best}"}}'
+        else:
+            text = f'{{"choice":"{best}"}}'
+        return text, scores
+
+    def generate(self, prompt: str, **kwargs) -> ModelResponse:
+        stimulus = kwargs.get("stimulus")
+        task = kwargs.get("task")
+
+        if self._prompt_type == "completion" and stimulus is not None and task is not None:
+            choices = stimulus.answer_choices or []
+            if not choices:
+                return ModelResponse(text="", token_logprobs=None)
+            scored = {
+                c: self.score_completion(prompt, task.format_completion(stimulus, c))
+                for c in choices
+            }
+            valid = {c: s for c, s in scored.items() if s is not None}
+            best = max(valid, key=valid.get) if valid else choices[0]
+            return ModelResponse(text=best.split("]")[0].strip(), token_logprobs=None)
+
+        if self._prompt_type == "instruction" and self._prompt_mode == "choice_only":
+            text, letter_scores = self._score_instruction_letters(prompt)
+            raw = _build_synthetic_choice_raw(text, letter_scores)
+            return ModelResponse(text=text, token_logprobs=None, raw=raw)
+
+        if self._prompt_type == "instruction":
+            text, _ = self._score_instruction_letters(prompt)
+            m = re.search(r'(?i)"choice"\s*:\s*"\s*([ABCD])', text)
+            letter = m.group(1).upper() if m else "A"
+            if self._prompt_mode == "plain":
+                return ModelResponse(text=letter, token_logprobs=None)
+            return ModelResponse(text=text, token_logprobs=None)
+
+        return ModelResponse(text="", token_logprobs=None)

@@ -68,6 +68,63 @@ def generate_constancy_task(
     }
 
 
+def _generate_constancy_row_distractors(
+    correct: int,
+    other_rows: tuple[int, int],
+    min_val: int,
+    max_val: int,
+    rng: random.Random,
+) -> list[int]:
+    """One distractor from another row's value plus two nearby numbers."""
+    row_distractor = rng.choice(list(other_rows))
+    exclude = frozenset({correct, row_distractor})
+    nearby = generate_distractors(correct, min_val, max_val, exclude=exclude, rng=rng)
+    distractors = [row_distractor]
+    for v in nearby:
+        if v not in distractors:
+            distractors.append(v)
+        if len(distractors) >= 3:
+            break
+    if len(distractors) < 3:
+        for v in range(min_val, max_val + 1):
+            if v not in distractors and v != correct:
+                distractors.append(v)
+            if len(distractors) >= 3:
+                break
+    return distractors[:3]
+
+
+def generate_constancy_row_task(
+    min_val: int = 1,
+    max_val: int = 20,
+    rng: Optional[random.Random] = None,
+) -> dict:
+    """Generate a row-constancy task (3×3).
+
+    Each row holds a constant value; blank at (2, 2). Correct answer: row 2's value.
+    Distractors: one value from another row, plus two nearby numbers.
+    """
+    rng = rng or random.Random()
+    if max_val - min_val + 1 < 3:
+        raise ValueError("constancy_row needs at least 3 distinct values in range")
+
+    a, b, c = rng.sample(range(min_val, max_val + 1), 3)
+    correct = c
+    distractors = _generate_constancy_row_distractors(
+        correct, (a, b), min_val, max_val, rng
+    )
+    options = [correct] + distractors
+    rng.shuffle(options)
+    correct_index = options.index(correct)
+
+    return {
+        "task_type": "constancy_row",
+        "matrix": [[a, a, a], [b, b, b], [c, c, None]],
+        "answer_options": options,
+        "correct_index": correct_index,
+    }
+
+
 def generate_pattern_task(
     min_val: int = 1,
     max_val: int = 20,
@@ -420,15 +477,41 @@ def generate_intersection_task(
 
 LETTERS = "ABCD"
 
-# 3×3 matrix layout used in ``tasks.json`` (see ``validate_tasks.py``).
-_ICL_TASK_TYPES = (
+# Round-robin order for ``tasks.json`` and ``generate.py --type all``.
+TASK_TYPE_CYCLE: tuple[str, ...] = (
     "constancy",
+    "constancy_row",
     "pattern",
     "pattern_tuple",
     "progression",
     "combine",
     "intersection",
 )
+
+# Alias for ICL example generation (same order as ``TASK_TYPE_CYCLE``).
+_ICL_TASK_TYPES = TASK_TYPE_CYCLE
+
+
+def interleave_tasks_by_type(
+    tasks: list[dict],
+    *,
+    type_cycle: tuple[str, ...] = TASK_TYPE_CYCLE,
+) -> list[dict]:
+    """Reorder tasks round-robin by ``task_type`` so ``max_tasks`` slices include every type."""
+    from collections import defaultdict
+
+    by_type: dict[str, list[dict]] = defaultdict(list)
+    for task in tasks:
+        by_type[str(task["task_type"])].append(task)
+
+    rounds = max((len(by_type[tt]) for tt in type_cycle if by_type.get(tt)), default=0)
+    interleaved: list[dict] = []
+    for _round in range(rounds):
+        for tt in type_cycle:
+            bucket = by_type.get(tt, [])
+            if _round < len(bucket):
+                interleaved.append(bucket[_round])
+    return interleaved
 
 
 def _expand_task_to_3x3(task: dict) -> dict:
@@ -445,7 +528,7 @@ def _expand_task_to_3x3(task: dict) -> dict:
     elif tt == "pattern_tuple":
         a, b = matrix[0][0], matrix[0][1]
         expanded = [[a, b, b], [b, a, b], [b, b, None]]
-    elif tt in ("combine", "intersection"):
+    elif tt in ("combine", "intersection", "constancy_row"):
         expanded = matrix
     else:
         raise ValueError(f"cannot expand task type: {tt!r}")
@@ -457,6 +540,8 @@ def _generate_icl_candidate(task_type: str, rng: random.Random) -> dict:
     """Generate one 3×3 demonstration task of ``task_type``."""
     if task_type == "constancy":
         task = generate_constancy_task(rng=rng)
+    elif task_type == "constancy_row":
+        return generate_constancy_row_task(rng=rng)
     elif task_type == "pattern":
         task = generate_pattern_task(rng=rng)
     elif task_type == "pattern_tuple":

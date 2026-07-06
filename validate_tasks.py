@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+from generator import TASK_TYPE_CYCLE
+
 LETTERS = "ABCD"
 
 
@@ -57,6 +59,27 @@ def validate_task(i: int, task: dict) -> list[str]:
                             errs.append(f"task {i}: constancy mismatch {v} vs {n}")
             if n is not None and picked != n:
                 errs.append(f"task {i}: constancy picked {picked} expected {n}")
+
+        elif tt == "constancy_row":
+            if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+                errs.append(f"task {i}: constancy_row expects 3x3")
+            else:
+                row_vals: list[int | None] = []
+                for r, row in enumerate(matrix):
+                    vals = [norm_cell(c) for c in row if c is not None]
+                    if not vals:
+                        errs.append(f"task {i}: constancy_row row {r} has no filled cells")
+                        continue
+                    if len(set(vals)) != 1:
+                        errs.append(f"task {i}: constancy_row row {r} not constant")
+                    else:
+                        row_vals.append(vals[0])
+                if matrix[2][2] is not None:
+                    errs.append(f"task {i}: constancy_row blank must be null at (2,2)")
+                if len(row_vals) == 3 and picked != row_vals[2]:
+                    errs.append(
+                        f"task {i}: constancy_row picked {picked} expected {row_vals[2]}"
+                    )
 
         elif tt == "pattern":
             if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
@@ -150,12 +173,27 @@ def validate_task(i: int, task: dict) -> list[str]:
     return errs
 
 
+def validate_interleaved_order(tasks: list[dict]) -> list[str]:
+    """Ensure tasks.json uses the 7-type round-robin (so max_tasks slices cover all types)."""
+    errs: list[str] = []
+    for i, task in enumerate(tasks):
+        expected = TASK_TYPE_CYCLE[i % len(TASK_TYPE_CYCLE)]
+        actual = task.get("task_type")
+        if actual != expected:
+            errs.append(
+                f"task {i}: expected task_type {expected!r} in round-robin order, got {actual!r}"
+            )
+            break
+    return errs
+
+
 def main() -> int:
     path = Path(__file__).resolve().parent / "tasks.json"
     with open(path) as f:
         data = json.load(f)
     tasks = data.get("tasks", data)
     all_errs: list[str] = []
+    all_errs.extend(validate_interleaved_order(tasks))
     for i, task in enumerate(tasks):
         all_errs.extend(validate_task(i, task))
     if all_errs:

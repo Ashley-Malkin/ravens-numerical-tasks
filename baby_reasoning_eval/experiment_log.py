@@ -9,6 +9,7 @@ from typing import Any, Optional
 TASK_TYPE_ORDER = (
     "combine",
     "constancy",
+    "constancy_row",
     "intersection",
     "pattern",
     "pattern_tuple",
@@ -93,15 +94,16 @@ def append_experiment_entry(
     max_tasks: Optional[int] = None,
     accuracy_delta: Optional[float] = None,
     settings_note: str = "Modal vLLM (`modal_eval.py`); `--n-examples 0`",
+    file_preamble: str | None = None,
 ) -> None:
-    """Append one experiment entry to ``experiments.md``."""
+    """Append one experiment entry to an experiments markdown log."""
     experiments_path.parent.mkdir(parents=True, exist_ok=True)
     if not experiments_path.is_file():
-        experiments_path.write_text(
+        preamble = file_preamble or (
             "# Ravens numerical experiments (Modal / vLLM)\n\n"
-            "Auto-appended by `baby_reasoning_eval/modal_eval.py` after each run.\n\n",
-            encoding="utf-8",
+            "Auto-appended by `baby_reasoning_eval/modal_eval.py` after each run.\n\n"
         )
+        experiments_path.write_text(preamble, encoding="utf-8")
     entry = format_experiment_entry(
         run_label=run_label,
         model_summaries=model_summaries,
