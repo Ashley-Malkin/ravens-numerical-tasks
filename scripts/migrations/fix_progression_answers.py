@@ -6,7 +6,7 @@ import random
 import sys
 from pathlib import Path
 
-from generator import generate_distractors
+from ravens_numerical.generation.generator import generate_distractors
 
 
 def is_progression_3x3_with_blank_at_22(task: dict) -> bool:

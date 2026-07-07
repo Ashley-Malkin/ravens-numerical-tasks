@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ravens-numerical"
+version = "0.2.0"
+description = "Raven's-style numerical matrix reasoning benchmark and evaluation toolkit"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "matplotlib>=3.10",
+    "pandas>=2.3",
+    "requests>=2.31",
+    "seaborn>=0.13",
+    "tyro>=0.9",
+    "vllm>=0.18.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9",
+    "pytest-mock>=3.12",
+    "responses>=0.25",
+]
+modal = [
+    "modal>=0.64",
+]
+notebook = [
+    "jupyterlab>=4.5",
+    "nbformat>=5.9",
+]
+
+[project.scripts]
+ravens-generate = "ravens_numerical.generation.cli:main"
+ravens-validate = "ravens_numerical.validation.validate_tasks:main"
+ravens-eval = "ravens_numerical.standalone.evaluate:main"
+ravens-run = "ravens_numerical.eval.cli:main"
+ravens-modal = "ravens_numerical.cloud.modal_eval:main"
+ravens-aggregate = "ravens_numerical.analysis.aggregate:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest-mock>=3.15",
+]

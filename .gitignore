@@ -26,5 +26,5 @@ env/
 .cursor/
 .matplotlib/
 
-# Eval outputs (regenerated)
-baby_reasoning_eval/baby-reasoning/results/
+# Generated artifacts (regenerable)
+artifacts/

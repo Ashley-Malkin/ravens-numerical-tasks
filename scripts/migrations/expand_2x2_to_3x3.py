@@ -6,7 +6,7 @@ import random
 import sys
 from pathlib import Path
 
-from generator import generate_distractors
+from ravens_numerical.generation.generator import generate_distractors
 
 
 def is_2x2(matrix: list) -> bool:

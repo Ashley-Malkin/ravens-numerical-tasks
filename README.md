@@ -1,30 +1,59 @@
 # Raven's Numerical Reasoning Tasks
 
-A benchmark and toolkit for Raven's-style numerical matrix reasoning: task generation, validation, Ollama evaluation, and a **baby-reasoning** harness (local vLLM/Ollama + [Modal](baby_reasoning_eval/modal_eval.py) GPU eval).
+A benchmark and toolkit for Raven's-style numerical matrix reasoning: task generation, validation, model evaluation (vLLM / Ollama / HuggingFace), and Modal GPU scaling runs.
 
-## Repository setup
+## Setup
+
+Requires **Python 3.11+**. On macOS, the default `python3` / `pip3` is often 3.9 — use 3.11 explicitly:
 
 ```bash
 git clone git@github.com:Ashley-Malkin/ravens-numerical-tasks.git
 cd ravens-numerical-tasks
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e baby_reasoning_eval/baby-reasoning
-pip install modal   # optional: cloud GPU eval
+python --version   # should show 3.11.x
+pip install -e ".[dev]"
+pip install -e ".[modal]"   # optional: cloud GPU eval
 ```
 
-- **Task generation & Ollama eval** — this directory (`generate.py`, `evaluate.py`, `tasks.json`).
-- **Pythia / Qwen3 harness** — [`baby_reasoning_eval/README.md`](baby_reasoning_eval/README.md) (vLLM, Ollama, Modal).
-- **Experiment log** — [`baby_reasoning_eval/experiments.md`](baby_reasoning_eval/experiments.md) (updated by Modal entrypoint runs).
+If you don't have 3.11: `brew install python@3.11`
+
+## Layout
+
+```
+data/tasks.json          # canonical 140-task benchmark
+src/ravens_numerical/    # installable package
+artifacts/               # gitignored outputs (runs, logs, plots)
+docs/                    # committed summaries and attribution
+scripts/                 # shell wrappers and migrations
+tests/                   # unified pytest suite
+```
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `ravens-generate` | Generate tasks JSON |
+| `ravens-validate` | Validate `data/tasks.json` |
+| `ravens-eval` | Quick Ollama eval (Qwen3) |
+| `ravens-run` | Full harness (vLLM / Ollama / HF) |
+| `ravens-modal` | Modal GPU scaling (`modal run -m ravens_numerical.cloud.modal_eval`) |
+| `ravens-aggregate` | JSON results → CSV + `docs/scaling_summary.md` |
+
+```bash
+make test                # pytest
+ravens-validate
+./scripts/run_pythia_ravens.sh
+./scripts/run_qwen3_ravens.sh
+```
+
+See [docs/eval.md](docs/eval.md) for backends, Modal sweeps, and analysis tooling.
 
 ### Attribution
 
-[`baby_reasoning_eval/baby-reasoning/`](baby_reasoning_eval/baby-reasoning/) is vendored from [Ashley-Malkin/baby-reasoning](https://github.com/Ashley-Malkin/baby-reasoning) (MIT; see [`baby-reasoning/LICENSE`](baby_reasoning_eval/baby-reasoning/LICENSE)) with Ravens-specific extensions in this repo.
+The eval harness is derived from [baby-reasoning](https://github.com/Ashley-Malkin/baby-reasoning) (MIT). See [docs/attribution.md](docs/attribution.md).
 
 ---
-
-A CLI tool that generates numerical reasoning tasks inspired by Raven's Standard Progressive Matrices. Produces JSON output with 2x2 matrices and multiple-choice answer sets.
 
 ## Task Types
 
@@ -126,7 +155,7 @@ Each row holds a constant value; the blank is the missing value in the last row.
 ## Usage
 
 ```bash
-python generate.py --count 50 --type both --min 1 --max 20 --output tasks.json
+ravens-generate --count 50 --type both --min 1 --max 20 --output data/tasks.json
 ```
 
 ### Options
@@ -195,19 +224,16 @@ python generate.py --count 50 --type both --min 1 --max 20 --output tasks.json
 
 ## Evaluation
 
-To evaluate a model (e.g. Qwen3 30B) via Ollama on the task set:
-
-1. Install dependencies: `pip install requests`
-2. Run Ollama locally with the model: `ollama run qwen3:30b` (or pull first)
-3. Run the evaluator:
+Quick local Ollama eval:
 
 ```bash
-python evaluate.py --tasks tasks.json --model qwen3:30b
-# Structured JSON answer (Ollama `format` + `think: false` + logprobs for A–D):
-python evaluate.py --tasks tasks.json --model qwen3:30b --choice-only
+ravens-eval --tasks data/tasks.json --model qwen3:30b
+ravens-eval --tasks data/tasks.json --model qwen3:30b --choice-only
 ```
 
-Options: `--limit N` (run first N tasks), `--n-examples N` (0/1/3 in-context demos), `--base-url URL`, `--timeout SEC`, `--verbose`, `--choice-only` (JSON `{"choice":"A"|…}` plus logprobs at the **choice-letter token**; summary includes argmax accuracy and **mean Brier score** from softmax p(A–D) vs one-hot correct), `--cot-choice`, `--debug`, `--no-thinking`, `--max-tokens N`.
+Full harness and Modal scaling: [docs/eval.md](docs/eval.md).
+
+Options: `--limit N`, `--n-examples N`, `--base-url URL`, `--timeout SEC`, `--verbose`, `--choice-only`, `--cot-choice`, `--debug`, `--no-thinking`, `--max-tokens N`.
 
 ## One-off migration scripts
 
@@ -215,4 +241,4 @@ Historical scripts used to build or fix `tasks.json` live under [`scripts/migrat
 
 ## Requirements
 
-Python 3.9+. Generation uses stdlib only; evaluation requires `requests`.
+Python 3.11+. Install with `pip install -e ".[dev]"` (see [pyproject.toml](pyproject.toml)).

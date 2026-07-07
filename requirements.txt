@@ -1,3 +1,0 @@
-# For generation: stdlib only (json, random, argparse)
-# For evaluation (evaluate.py): requests
-requests>=2.28.0

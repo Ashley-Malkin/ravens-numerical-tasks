@@ -1,0 +1,136 @@
+[
+  {
+    "model": "stub-pythia",
+    "task": "ravens_numerical",
+    "n_examples": 1,
+    "stimulus": {
+      "query": "",
+      "expected": "B",
+      "metadata": {
+        "task": {
+          "task_type": "constancy",
+          "matrix": [[3, 3, 3], [3, 3, 3], [3, 3, null]],
+          "answer_options": [4, 3, 1, 2],
+          "correct_index": 1,
+          "correct_letter": "B"
+        }
+      }
+    },
+    "response": {
+      "text": "{\"choice\":\"B\"}",
+      "raw": {
+        "choices": [
+          {
+            "text": "{\"choice\":\"B\"}",
+            "logprobs": {
+              "tokens": ["{\"choice\":\"", "B", "\"}"],
+              "token_logprobs": [-0.1, -0.2, -0.3],
+              "top_logprobs": [
+                {},
+                {"A": -2.0, "B": -0.2, "C": -3.0, "D": -4.0},
+                {}
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "score": {
+      "correct": true,
+      "logprob_argmax_correct": true,
+      "logprob_correct": null,
+      "prob_correct": null,
+      "answer_logprobs": null,
+      "brier": 0.01
+    },
+    "timestamp": "2026-07-01T00:00:00.000Z"
+  },
+  {
+    "model": "stub-pythia",
+    "task": "ravens_numerical",
+    "n_examples": 1,
+    "stimulus": {
+      "query": "",
+      "expected": "C",
+      "metadata": {
+        "task": {
+          "task_type": "pattern",
+          "matrix": [[8, 11, 11], [8, 11, 11], [8, 11, null]],
+          "answer_options": [13, 9, 11, 12],
+          "correct_index": 2,
+          "correct_letter": "C"
+        }
+      }
+    },
+    "response": {
+      "text": "{\"choice\":\"A\"}",
+      "raw": {
+        "choices": [
+          {
+            "text": "{\"choice\":\"A\"}",
+            "logprobs": {
+              "tokens": ["{\"choice\":\"", "A", "\"}"],
+              "token_logprobs": [-0.1, -0.2, -0.3],
+              "top_logprobs": [
+                {},
+                {"A": -0.2, "B": -1.0, "C": -0.5, "D": -2.0},
+                {}
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "score": {
+      "correct": false,
+      "logprob_argmax_correct": false,
+      "logprob_correct": null,
+      "prob_correct": null,
+      "answer_logprobs": null,
+      "brier": 0.2
+    },
+    "timestamp": "2026-07-01T00:00:01.000Z"
+  },
+  {
+    "model": "stub-pythia",
+    "task": "ravens_numerical",
+    "n_examples": 1,
+    "stimulus": {
+      "query": "",
+      "expected": "D",
+      "metadata": {
+        "task": {
+          "task_type": "combine",
+          "matrix": [[1, 2], [3, null]],
+          "answer_options": [[1, 2], [2, 3], [1, 3], [2, 1]],
+          "correct_index": 3,
+          "correct_letter": "D"
+        }
+      }
+    },
+    "response": {
+      "text": "garbage",
+      "raw": {
+        "choices": [
+          {
+            "text": "garbage",
+            "logprobs": {
+              "tokens": ["garbage"],
+              "token_logprobs": [-0.5],
+              "top_logprobs": [{}]
+            }
+          }
+        ]
+      }
+    },
+    "score": {
+      "correct": false,
+      "logprob_argmax_correct": null,
+      "logprob_correct": null,
+      "prob_correct": null,
+      "answer_logprobs": null,
+      "brier": null
+    },
+    "timestamp": "2026-07-01T00:00:02.000Z"
+  }
+]
