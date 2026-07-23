@@ -21,7 +21,9 @@ If you don't have 3.11: `brew install python@3.11`
 ## Layout
 
 ```
-data/tasks.json          # canonical 140-task benchmark
+data/tasks.json          # canonical 140-task Raven benchmark
+data/tasks_aba.json      # ABA/ABB + hierarchical equality suite
+data/tasks_webb.json     # 151-task Webb et al. 2023 digit-matrix suite
 src/ravens_numerical/    # installable package
 artifacts/               # gitignored outputs (runs, logs, plots)
 docs/                    # committed summaries and attribution

@@ -1,15 +1,39 @@
 from __future__ import annotations
 
+import json
 import re
 
 import requests
 
 from ravens_numerical.eval.tasks.base import ModelBackend, ModelResponse
 from ravens_numerical.models.registry import is_qwen3_instruct_model, max_model_len_for_model
-from ravens_numerical.scoring.choice_logprobs import CHOICE_ONLY_FORMAT
+from ravens_numerical.parsing.answer_parse import parse_structured_choice
+from ravens_numerical.prompts.prompts import adapt_choice_only_prompt_for_letter_output
+from ravens_numerical.scoring.choice_logprobs import (
+    CHOICE_ONLY_FORMAT,
+    letter_logprobs_single_entry,
+    vllm_logprobs_to_ollama_list,
+)
 from ravens_numerical.scoring.mlm_scoring import score_completion_span, score_sequence
 
 CHOICE_ONLY_MAX_TOKENS = 256
+_OLMO2_CHOICE_LETTERS = ["A", "B", "C", "D"]
+
+
+def _vllm_structured_choice(choices: list[str]) -> dict:
+    """Top-level vLLM structured-output fields for raw HTTP JSON bodies.
+
+    The OpenAI Python client's ``extra_body=`` merges into the request body; with
+    ``requests.post(..., json=payload)`` those keys must be top-level. Nested
+    ``{"extra_body": {...}}`` is ignored by vLLM, so constraints never apply.
+    vLLM ≥0.12 prefers ``structured_outputs`` over deprecated ``guided_*``.
+    """
+    return {"structured_outputs": {"choice": list(choices)}}
+
+
+def _vllm_structured_json(schema: dict) -> dict:
+    """Top-level vLLM JSON-schema structured output for raw HTTP bodies."""
+    return {"structured_outputs": {"json": schema}}
 
 
 def strip_qwen_thinking(text: str) -> str:
@@ -88,7 +112,13 @@ class VLLMBackend(ModelBackend):
             json=payload,
             timeout=120,
         )
-        response.raise_for_status()
+        if not response.ok:
+            body = (response.text or "").strip()
+            detail = f": {body[:2000]}" if body else ""
+            raise requests.HTTPError(
+                f"{response.status_code} Server Error for url: {response.url}{detail}",
+                response=response,
+            )
         return response.json()
 
     def generate(self, prompt: str, **kwargs) -> ModelResponse:
@@ -147,6 +177,54 @@ class VLLMBackend(ModelBackend):
         )
 
 
+class ForcedChoiceVLLMBackend(VLLMBackend):
+    """Completions with vLLM structured choice over ``stimulus.answer_choices``.
+
+    Constrains generation to one formatted answer option (e.g. ``" 0"`` / ``" 1"``
+    for hierarchical). ABA and Raven's use plain ``VLLMBackend`` with echo logprob
+    argmax in ``evaluate`` (structured choice can 500 on those option strings).
+    """
+
+    _MAX_TOKENS = 16
+
+    def generate(self, prompt: str, **kwargs) -> ModelResponse:
+        stimulus = kwargs.get("stimulus")
+        task = kwargs.get("task")
+        choices = getattr(stimulus, "answer_choices", None) if stimulus is not None else None
+        if not choices:
+            return super().generate(prompt, **kwargs)
+
+        if task is not None and hasattr(task, "format_completion"):
+            guided = [task.format_completion(stimulus, c) for c in choices]
+        else:
+            guided = list(choices)
+
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "max_tokens": self._MAX_TOKENS,
+            "temperature": 0,
+            "logprobs": 1,
+        }
+        payload.update(_vllm_structured_choice(guided))
+        data = self._post("/v1/completions", payload)
+        choice = data["choices"][0]
+        logprobs_data = choice.get("logprobs")
+        token_logprobs = (
+            logprobs_data.get("token_logprobs")
+            if isinstance(logprobs_data, dict)
+            else None
+        )
+        text = choice.get("text", "").rstrip()
+        if self._is_qwen3_instruct:
+            text = strip_qwen_thinking(text)
+        return ModelResponse(
+            text=text,
+            token_logprobs=token_logprobs,
+            raw=data,
+        )
+
+
 class ChoiceOnlyVLLMBackend(ModelBackend):
     """Instruction choice-only eval via vLLM structured JSON + choice-token logprobs."""
 
@@ -181,15 +259,16 @@ class ChoiceOnlyVLLMBackend(ModelBackend):
         }
 
     def _build_generate_payload(self, prompt: str) -> dict:
-        return {
+        payload = {
             "model": self.model,
             "prompt": prompt,
             "max_tokens": CHOICE_ONLY_MAX_TOKENS,
             "temperature": 0,
             "logprobs": True,
             "top_logprobs": 20,
-            "extra_body": {"guided_json": self._choice_schema},
         }
+        payload.update(_vllm_structured_json(self._choice_schema))
+        return payload
 
     def _extract_text(self, data: dict) -> str:
         choice = data["choices"][0]
@@ -222,6 +301,101 @@ class PythiaChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
     """GPT-2 style instruction (Pythia, BabyLM): completions API + guided JSON."""
 
 
+class Olmo2ChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
+    """OLMo 2 base: completions API + vLLM guided letter choice."""
+
+    def _build_generate_payload(self, prompt: str) -> dict:
+        payload = {
+            "model": self.model,
+            "prompt": adapt_choice_only_prompt_for_letter_output(prompt),
+            "max_tokens": CHOICE_ONLY_MAX_TOKENS,
+            "temperature": 0,
+            "logprobs": True,
+            "top_logprobs": 20,
+        }
+        payload.update(_vllm_structured_choice(_OLMO2_CHOICE_LETTERS))
+        return payload
+
+    def _letter_logprobs_from_completion(self, data: dict) -> dict[str, float]:
+        letters = "ABCD"
+        best = {c: float("-inf") for c in letters}
+        for entry in vllm_logprobs_to_ollama_list(data):
+            merged = letter_logprobs_single_entry(entry)
+            for letter in letters:
+                if merged[letter] > best[letter]:
+                    best[letter] = merged[letter]
+        return best
+
+    def _best_letter_from_logprobs(self, data: dict) -> str | None:
+        letter_lps = self._letter_logprobs_from_completion(data)
+        if not any(v > float("-inf") for v in letter_lps.values()):
+            return None
+        return max("ABCD", key=lambda c: letter_lps[c])
+
+    def _json_from_letter(
+        self, letter: str, data: dict
+    ) -> tuple[str, dict]:
+        json_text = json.dumps({"choice": letter}, separators=(",", ":"))
+        letter_lps = self._letter_logprobs_from_completion(data)
+        if any(v > float("-inf") for v in letter_lps.values()):
+            return json_text, _build_synthetic_choice_raw(json_text, letter_lps)
+        return json_text, data
+
+    def _normalize_choice_output(self, text: str, data: dict) -> tuple[str, dict]:
+        """Map letter or empty JSON output to choice-only JSON for scoring."""
+        stripped = text.strip()
+        choice_idx = parse_structured_choice(stripped)
+        if choice_idx is not None:
+            return self._json_from_letter("ABCD"[choice_idx], data)
+
+        if stripped.startswith("{") and '"choice"' in stripped:
+            letter = self._best_letter_from_logprobs(data)
+            if letter is not None:
+                return self._json_from_letter(letter, data)
+            return stripped, data
+
+        letter = stripped.upper()[:1] if stripped else ""
+        if letter in "ABCD":
+            return self._json_from_letter(letter, data)
+
+        letter = self._best_letter_from_logprobs(data)
+        if letter is not None:
+            return self._json_from_letter(letter, data)
+        return stripped, data
+
+    def generate(self, prompt: str, **kwargs) -> ModelResponse:
+        _ = kwargs
+        data = self._post(self._build_generate_payload(prompt))
+        text, raw = self._normalize_choice_output(self._extract_text(data), data)
+        choice = raw["choices"][0]
+        logprobs_data = choice.get("logprobs")
+        token_logprobs = None
+        if isinstance(logprobs_data, dict):
+            token_logprobs = logprobs_data.get("token_logprobs")
+        return ModelResponse(
+            text=text,
+            token_logprobs=token_logprobs,
+            raw=raw,
+        )
+
+
+class Olmo2InstructChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
+    """OLMo 2 instruct: chat completions + JSON schema (``<|user|>`` / ``<|assistant|>``)."""
+
+    _api_path = "/v1/chat/completions"
+
+    def _build_generate_payload(self, prompt: str) -> dict:
+        return {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": CHOICE_ONLY_MAX_TOKENS,
+            "temperature": 0,
+            "logprobs": True,
+            "top_logprobs": 20,
+            "response_format": self._response_format_payload(),
+        }
+
+
 class Qwen3ChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
     """Qwen3 instruction: chat completions + JSON schema + thinking off."""
 
@@ -236,14 +410,9 @@ class Qwen3ChoiceOnlyVLLMBackend(ChoiceOnlyVLLMBackend):
             "logprobs": True,
             "top_logprobs": 20,
             "response_format": self._response_format_payload(),
-            "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+            # Top-level for raw HTTP (OpenAI client would pass via extra_body=).
+            "chat_template_kwargs": {"enable_thinking": False},
         }
-
-
-def _choice_suffix(letter: str, *, cot: bool = False) -> str:
-    if cot:
-        return f'\n{{"reasoning":"","choice":"{letter}"}}'
-    return f'\n{{"choice":"{letter}"}}'
 
 
 def _build_synthetic_choice_raw(text: str, logprobs_by_letter: dict[str, float]) -> dict:
@@ -267,6 +436,12 @@ def _build_synthetic_choice_raw(text: str, logprobs_by_letter: dict[str, float])
             }
         ]
     }
+
+
+def _choice_suffix(letter: str, *, cot: bool = False) -> str:
+    if cot:
+        return f'\n{{"reasoning":"","choice":"{letter}"}}'
+    return f'\n{{"choice":"{letter}"}}'
 
 
 class RobertaMLMBackend(ModelBackend):
@@ -345,7 +520,19 @@ class RobertaMLMBackend(ModelBackend):
         stimulus = kwargs.get("stimulus")
         task = kwargs.get("task")
 
-        if self._prompt_type == "completion" and stimulus is not None and task is not None:
+        # Prefer option PLL whenever the task exposes answer_choices and is not
+        # Raven instruction choice_only (covers aba / hierarchical / matrix).
+        use_answer_choice_pll = (
+            stimulus is not None
+            and task is not None
+            and bool(stimulus.answer_choices)
+            and not getattr(task, "uses_choice_only_metrics", False)
+        )
+        if use_answer_choice_pll or (
+            self._prompt_type == "completion"
+            and stimulus is not None
+            and task is not None
+        ):
             choices = stimulus.answer_choices or []
             if not choices:
                 return ModelResponse(text="", token_logprobs=None)

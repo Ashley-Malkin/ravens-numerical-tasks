@@ -54,14 +54,60 @@ def _choice_only_metrics(
     return logprob_argmax_correct, brier
 
 
+def _match_forced_choice_generation(
+    task: Task,
+    stimulus: Stimulus,
+    response_text: str,
+) -> str | None:
+    """Map generated text to an ``answer_choices`` entry, or ``None``.
+
+    Uses the span before the first ``]`` (Raven / Webb completion cells). Exact
+    matches beat first-token matches so a short distractor like ``\"5\"`` cannot
+    hijack a longer cell ``\"5 7 4 1]...\"``. First-token matching applies only
+    when that span is a single token (ABA / hierarchical constrained gens).
+    """
+    raw = (response_text or "").strip()
+    if not raw or not stimulus.answer_choices:
+        return None
+
+    span = raw.split("]")[0].strip()
+    span_l = span.lower()
+    choice_map = {c.lower(): c for c in stimulus.answer_choices}
+    formatted = {
+        task.format_completion(stimulus, c).strip().lower(): c
+        for c in stimulus.answer_choices
+    }
+    formatted_cell = {
+        key.rstrip("]").strip(): choice for key, choice in formatted.items()
+    }
+
+    if span_l in formatted:
+        return formatted[span_l]
+    if span_l in formatted_cell:
+        return formatted_cell[span_l]
+    if span_l in choice_map:
+        return choice_map[span_l]
+
+    tokens = span.split()
+    if len(tokens) == 1 and tokens[0].lower() in choice_map:
+        return choice_map[tokens[0].lower()]
+    return None
+
+
 def evaluate(
     task: Task,
     backend: ModelBackend,
     n_examples: int,
     stimuli: list[Stimulus] | None = None,
+    score_mode: str = "free_gen",
 ) -> list[TrialResult]:
     if stimuli is None:
         stimuli = task.canonical_stimuli()
+
+    if score_mode not in ("free_gen", "forced_choice"):
+        raise ValueError(
+            f"score_mode must be 'free_gen' or 'forced_choice', got {score_mode!r}"
+        )
 
     task_name = _task_name(task)
     results = []
@@ -70,10 +116,10 @@ def evaluate(
     for stimulus in stimuli:
         prompt = task.build_prompt(stimulus, n_examples)
         response = backend.generate(prompt, stimulus=stimulus, task=task)
-        correct = task.score(response, stimulus)
         logprob_argmax_correct, brier = _choice_only_metrics(task, response, stimulus)
 
         if choice_only and response.raw is not None:
+            correct = task.score(response, stimulus)
             logprob_correct = None
             prob_correct = None
             answer_logprobs = None
@@ -89,10 +135,29 @@ def evaluate(
                 denom = sum(math.exp(lp - max_lp) for lp in valid.values())
                 lp_c = valid.get(stimulus.expected)
                 prob_correct = math.exp(lp_c - max_lp) / denom if lp_c is not None else None
+                pred = max(valid, key=valid.get)
+                if score_mode == "forced_choice":
+                    logprob_argmax_correct = pred == stimulus.expected
+                    # Prefer constrained / exact generation match; else echo
+                    # logprob argmax. Do not let a short first-token distractor
+                    # override a longer cell completion.
+                    matched = _match_forced_choice_generation(
+                        task, stimulus, response.text or ""
+                    )
+                    if matched is not None:
+                        correct = (
+                            matched.lower() == stimulus.expected.strip().lower()
+                        )
+                    else:
+                        correct = logprob_argmax_correct
+                else:
+                    correct = task.score(response, stimulus)
             else:
                 prob_correct = None
+                correct = task.score(response, stimulus)
             answer_logprobs = logprobs
         else:
+            correct = task.score(response, stimulus)
             logprob_correct = backend.score_completion(
                 prompt, task.format_completion(stimulus, stimulus.expected)
             )

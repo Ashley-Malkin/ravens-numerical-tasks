@@ -58,14 +58,22 @@ def format_experiment_entry(
     max_tasks: Optional[int] = None,
     accuracy_delta: Optional[float] = None,
     settings_note: str = "Modal vLLM (`modal_eval.py`); `--n-examples 0`",
+    step: int | None = None,
 ) -> str:
-    """Return a markdown block for one logged experiment run."""
+    """Return a markdown block for one logged experiment run.
+
+    The H2 header includes the UTC run time. When ``step`` is set (checkpoint
+    evals), a separate ``(step=N)`` suffix is appended after the tasks note so
+    parsers that match ``(max_tasks=N)`` keep working.
+    """
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    date_only = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     tasks_note = "all tasks" if max_tasks is None else f"max_tasks={max_tasks}"
+    header = f"## {ts} — {run_label} ({tasks_note})"
+    if step is not None:
+        header = f"{header} (step={step})"
 
     lines = [
-        f"## {date_only} — {run_label} ({tasks_note})",
+        header,
         "",
         f"_Logged {ts}. {settings_note}_",
         "",
@@ -95,6 +103,7 @@ def append_experiment_entry(
     accuracy_delta: Optional[float] = None,
     settings_note: str = "Modal vLLM (`modal_eval.py`); `--n-examples 0`",
     file_preamble: str | None = None,
+    step: int | None = None,
 ) -> None:
     """Append one experiment entry to an experiments markdown log."""
     experiments_path.parent.mkdir(parents=True, exist_ok=True)
@@ -110,6 +119,7 @@ def append_experiment_entry(
         max_tasks=max_tasks,
         accuracy_delta=accuracy_delta,
         settings_note=settings_note,
+        step=step,
     )
     with experiments_path.open("a", encoding="utf-8") as f:
         f.write(entry)

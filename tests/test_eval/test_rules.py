@@ -128,6 +128,12 @@ def test_score_incorrect(task):
     assert task.score(ModelResponse(text="de"), s) is False
 
 
+def test_score_empty_response(task):
+    s = Stimulus(query="de ro", expected="ro", metadata={"rule": "ABB"})
+    assert task.score(ModelResponse(text=""), s) is False
+    assert task.score(ModelResponse(text="   \n"), s) is False
+
+
 def test_format_completion_prepends_space(task):
     s = Stimulus(query="de ro", expected="ro", metadata={"rule": "ABB"})
     assert task.format_completion(s, "ro") == " ro"

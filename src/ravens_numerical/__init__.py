@@ -6,7 +6,9 @@ from ravens_numerical.paths import (
     LEGACY_DATA_DIR,
     REPO_ROOT,
     RUNS_DIR,
+    TASKS_ABA_JSON,
     TASKS_JSON,
+    TASKS_WEBB_JSON,
 )
 
 # Backward-compatible alias used by eval runner.
@@ -19,5 +21,7 @@ __all__ = [
     "REPO_ROOT",
     "RESULTS_DIR",
     "RUNS_DIR",
+    "TASKS_ABA_JSON",
     "TASKS_JSON",
+    "TASKS_WEBB_JSON",
 ]

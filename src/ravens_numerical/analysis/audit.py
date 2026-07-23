@@ -62,7 +62,7 @@ def _letter_to_value(task: dict[str, Any], letter_idx: int | None) -> str | None
 def _value_match(predicted: str | None, expected: str, task_type: str) -> bool:
     if predicted is None:
         return False
-    if task_type in ("combine", "intersection"):
+    if task_type == "intersection":
         return set(predicted.split()) == set(expected.split())
     return predicted == expected
 

@@ -6,9 +6,38 @@ Used by evaluate.py and baby_reasoning RavensNumericalTask.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 IclExample = dict[str, Any]
+
+_CHOICE_ONLY_JSON_INSTRUCTION = (
+    'Your entire reply must be a single JSON object with exactly one key "choice"'
+)
+
+_CHOICE_ONLY_LETTER_FOOTER = """
+Reply with ONLY the option letter: A, B, C, or D. (A = first option, B = second, C = third, D = fourth.)
+Do not give the value that goes in the blank—give the option letter.
+
+Do not provide additional reasoning or explanation, only return the option letter.
+"""
+
+
+def adapt_choice_only_prompt_for_letter_output(prompt: str) -> str:
+    """Rewrite choice_only JSON instructions to a single-letter reply (OLMo base).
+
+    Used with vLLM ``guided_choice`` so the model is not asked to emit JSON while
+    the decoder constrains output to one of A/B/C/D.
+    """
+    out = re.sub(
+        r'A valid reply would be exactly: \{"choice":"([ABCD])"\}',
+        r"A valid reply would be exactly: \1",
+        prompt,
+    )
+    idx = out.find(_CHOICE_ONLY_JSON_INSTRUCTION)
+    if idx != -1:
+        out = out[:idx].rstrip() + _CHOICE_ONLY_LETTER_FOOTER
+    return out
 
 
 def format_cell(cell: Any) -> str:
@@ -176,6 +205,27 @@ def _resolve_task_type(task_type: str) -> str:
     return task_type if task_type in IN_CONTEXT_EXAMPLES else "constancy"
 
 
+def _select_icl_examples(
+    task_type: str,
+    icl_examples: dict[str, list[IclExample]] | None,
+) -> list[IclExample]:
+    """Return the ICL bank slice for ``task_type``.
+
+    When ``icl_examples`` is provided (e.g. Webb), unknown types raise.
+    Otherwise fall back to the Raven ``IN_CONTEXT_EXAMPLES`` bank (with the
+    historical constancy alias for unrecognized Raven subtypes).
+    """
+    if icl_examples is not None:
+        if task_type not in icl_examples:
+            raise KeyError(
+                f"No ICL examples for task_type={task_type!r} in custom ICL bank "
+                f"(have {sorted(icl_examples)})"
+            )
+        return icl_examples[task_type]
+    tt = _resolve_task_type(task_type)
+    return IN_CONTEXT_EXAMPLES[tt]
+
+
 def _format_one_example(
     ex: IclExample,
     mode: str,
@@ -224,17 +274,18 @@ def in_context_example_block(
     task_type: str,
     mode: str,
     n_examples: int = 0,
+    icl_examples: dict[str, list[IclExample]] | None = None,
 ) -> str:
     """Format in-context demonstration(s) for ``task_type``.
 
     ``mode`` is ``plain``, ``choice_only``, or ``cot_choice``.
     ``n_examples``: ``0`` = no demos; ``1`` = first demo; ``3`` = all three stored demos.
+    ``icl_examples``: optional custom bank (Webb); defaults to ``IN_CONTEXT_EXAMPLES``.
     """
     if n_examples <= 0:
         return ""
 
-    tt = _resolve_task_type(task_type)
-    examples = IN_CONTEXT_EXAMPLES[tt]
+    examples = _select_icl_examples(task_type, icl_examples)
     chosen = examples[: min(n_examples, len(examples))]
 
     blocks = [
@@ -249,22 +300,27 @@ def build_prompt(
     mode: str = "plain",
     n_examples: int = 0,
     prompt_type: str = "instruction",
+    icl_examples: dict[str, list[IclExample]] | None = None,
 ) -> str:
     """Build the prompt for one task.
 
     ``prompt_type`` is ``instruction`` (letter MCQ; default) or ``completion`` (bracket fill-in).
     ``mode`` applies to ``instruction`` only (``plain``, ``choice_only``, ``cot_choice``).
     ``n_examples``: ``0`` = zero-shot; ``1`` / ``3`` = that many ICL demos from
-    ``IN_CONTEXT_EXAMPLES`` (capped at three per task type).
+    ``IN_CONTEXT_EXAMPLES`` or ``icl_examples`` (capped at three per task type).
     """
     if prompt_type == "completion":
-        return build_completion_prompt(task, n_examples=n_examples)
+        return build_completion_prompt(
+            task, n_examples=n_examples, icl_examples=icl_examples
+        )
 
     matrix = task["matrix"]
     options = task["answer_options"]
     task_type = task["task_type"]
 
-    icl = in_context_example_block(task_type, mode, n_examples=n_examples)
+    icl = in_context_example_block(
+        task_type, mode, n_examples=n_examples, icl_examples=icl_examples
+    )
     icl_section = icl if icl else ""
 
     common = f"""You are solving a numerical/spatial reasoning task (Raven's-style matrix). The blank is shown as ?. One of the options below is the correct answer.
@@ -309,7 +365,7 @@ Do not provide additional reasoning or explanation, only return the option lette
 
 # --- Completion-style prompts (baby-reasoning / matrix_easy bracket format) ---
 
-COMPLETION_PERM_INVARIANT_TYPES = frozenset({"combine", "intersection"})
+COMPLETION_PERM_INVARIANT_TYPES = frozenset({"intersection"})
 
 
 def format_completion_cell(cell: Any) -> str:
@@ -349,16 +405,32 @@ def expected_completion_answer(task: dict) -> str:
     return format_completion_answer(opts[ci])
 
 
-def completion_perm_invariant(task_type: str) -> bool:
+def completion_perm_invariant(
+    task_type: str,
+    *,
+    perm_invariant: bool | None = None,
+) -> bool:
+    """Whether completion scoring compares token sets (order-invariant).
+
+    Raven ``intersection`` is order-invariant; ``combine`` requires exact token
+    order. Webb items pass an explicit ``perm_invariant`` flag from the NPZ via
+    the task JSON.
+    """
+    if perm_invariant is not None:
+        return bool(perm_invariant)
     return task_type in COMPLETION_PERM_INVARIANT_TYPES
 
 
-def _completion_icl_pairs(task_type: str, n_examples: int) -> list[tuple[str, str]]:
+def _completion_icl_pairs(
+    task_type: str,
+    n_examples: int,
+    icl_examples: dict[str, list[IclExample]] | None = None,
+) -> list[tuple[str, str]]:
     if n_examples <= 0:
         return []
-    tt = _resolve_task_type(task_type)
+    examples = _select_icl_examples(task_type, icl_examples)
     pairs: list[tuple[str, str]] = []
-    for ex in IN_CONTEXT_EXAMPLES[tt][: min(n_examples, len(IN_CONTEXT_EXAMPLES[tt]))]:
+    for ex in examples[: min(n_examples, len(examples))]:
         query = matrix_to_completion_query(ex["matrix"])
         letter = ex["correct_letter"]
         idx = ord(str(letter).strip().upper()[0]) - ord("A")
@@ -367,10 +439,16 @@ def _completion_icl_pairs(task_type: str, n_examples: int) -> list[tuple[str, st
     return pairs
 
 
-def build_completion_prompt(task: dict, n_examples: int = 0) -> str:
-    """Bracket-completion prompt on the same ``tasks.json`` items (no letter instructions)."""
+def build_completion_prompt(
+    task: dict,
+    n_examples: int = 0,
+    icl_examples: dict[str, list[IclExample]] | None = None,
+) -> str:
+    """Bracket-completion prompt on the same task items (no letter instructions)."""
     parts: list[str] = []
-    for query, answer in _completion_icl_pairs(task["task_type"], n_examples):
+    for query, answer in _completion_icl_pairs(
+        task["task_type"], n_examples, icl_examples=icl_examples
+    ):
         parts.append(query + answer + "]")
         parts.append("")
     parts.append(matrix_to_completion_query(task["matrix"]))

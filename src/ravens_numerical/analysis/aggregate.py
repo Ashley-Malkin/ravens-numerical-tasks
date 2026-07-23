@@ -20,7 +20,7 @@ DEFAULT_CSV = AGGREGATE_DIR / "scaling_results.csv"
 DEFAULT_MD = SCALING_SUMMARY_MD
 
 _EXAMPLES_RE = re.compile(
-    r"^(\d+)_examples(?:_(instruction|completion|choice_only))?\.json$"
+    r"^(\d+)_examples(?:_(instruction|completion|choice_only|forced_choice))?\.json$"
 )
 
 

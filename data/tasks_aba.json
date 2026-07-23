@@ -1,0 +1,1724 @@
+{
+  "rules": [
+    {
+      "query": "pe bi",
+      "expected": "pe",
+      "answer_choices": [
+        "pe",
+        "bi"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku vi",
+      "expected": "ku",
+      "answer_choices": [
+        "ku",
+        "vi"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo me",
+      "expected": "zo",
+      "answer_choices": [
+        "zo",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ba fo",
+      "expected": "ba",
+      "answer_choices": [
+        "ba",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "pe ku",
+      "expected": "pe",
+      "answer_choices": [
+        "pe",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo ba",
+      "expected": "zo",
+      "answer_choices": [
+        "zo",
+        "ba"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "re ku",
+      "expected": "re",
+      "answer_choices": [
+        "re",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo vi",
+      "expected": "fo",
+      "answer_choices": [
+        "fo",
+        "vi"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "bi si",
+      "expected": "bi",
+      "answer_choices": [
+        "bi",
+        "si"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "re me",
+      "expected": "re",
+      "answer_choices": [
+        "re",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si pe",
+      "expected": "si",
+      "answer_choices": [
+        "si",
+        "pe"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo bi",
+      "expected": "fo",
+      "answer_choices": [
+        "fo",
+        "bi"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo re",
+      "expected": "zo",
+      "answer_choices": [
+        "zo",
+        "re"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo ku",
+      "expected": "fo",
+      "answer_choices": [
+        "fo",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ba zo",
+      "expected": "ba",
+      "answer_choices": [
+        "ba",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi ku",
+      "expected": "vi",
+      "answer_choices": [
+        "vi",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "bi me",
+      "expected": "bi",
+      "answer_choices": [
+        "bi",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "me bi",
+      "expected": "me",
+      "answer_choices": [
+        "me",
+        "bi"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "re pe",
+      "expected": "re",
+      "answer_choices": [
+        "re",
+        "pe"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "bi pe",
+      "expected": "bi",
+      "answer_choices": [
+        "bi",
+        "pe"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo si",
+      "expected": "fo",
+      "answer_choices": [
+        "fo",
+        "si"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku zo",
+      "expected": "ku",
+      "answer_choices": [
+        "ku",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku re",
+      "expected": "ku",
+      "answer_choices": [
+        "ku",
+        "re"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku me",
+      "expected": "ku",
+      "answer_choices": [
+        "ku",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi me",
+      "expected": "vi",
+      "answer_choices": [
+        "vi",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi si",
+      "expected": "vi",
+      "answer_choices": [
+        "vi",
+        "si"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "me ba",
+      "expected": "me",
+      "answer_choices": [
+        "me",
+        "ba"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo me",
+      "expected": "fo",
+      "answer_choices": [
+        "fo",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ba bi",
+      "expected": "ba",
+      "answer_choices": [
+        "ba",
+        "bi"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ba pe",
+      "expected": "ba",
+      "answer_choices": [
+        "ba",
+        "pe"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo ba",
+      "expected": "fo",
+      "answer_choices": [
+        "fo",
+        "ba"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi zo",
+      "expected": "vi",
+      "answer_choices": [
+        "vi",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "me vi",
+      "expected": "me",
+      "answer_choices": [
+        "me",
+        "vi"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo pe",
+      "expected": "fo",
+      "answer_choices": [
+        "fo",
+        "pe"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "me fo",
+      "expected": "me",
+      "answer_choices": [
+        "me",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABA",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi ba",
+      "expected": "ba",
+      "answer_choices": [
+        "vi",
+        "ba"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo fo",
+      "expected": "fo",
+      "answer_choices": [
+        "zo",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku bi",
+      "expected": "bi",
+      "answer_choices": [
+        "ku",
+        "bi"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "bi ku",
+      "expected": "ku",
+      "answer_choices": [
+        "bi",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "pe re",
+      "expected": "re",
+      "answer_choices": [
+        "pe",
+        "re"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "bi re",
+      "expected": "re",
+      "answer_choices": [
+        "bi",
+        "re"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "pe vi",
+      "expected": "vi",
+      "answer_choices": [
+        "pe",
+        "vi"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "bi zo",
+      "expected": "zo",
+      "answer_choices": [
+        "bi",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo bi",
+      "expected": "bi",
+      "answer_choices": [
+        "zo",
+        "bi"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi fo",
+      "expected": "fo",
+      "answer_choices": [
+        "vi",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "re fo",
+      "expected": "fo",
+      "answer_choices": [
+        "re",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo re",
+      "expected": "re",
+      "answer_choices": [
+        "fo",
+        "re"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si ku",
+      "expected": "ku",
+      "answer_choices": [
+        "si",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku fo",
+      "expected": "fo",
+      "answer_choices": [
+        "ku",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si me",
+      "expected": "me",
+      "answer_choices": [
+        "si",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku pe",
+      "expected": "pe",
+      "answer_choices": [
+        "ku",
+        "pe"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "re zo",
+      "expected": "zo",
+      "answer_choices": [
+        "re",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "pe fo",
+      "expected": "fo",
+      "answer_choices": [
+        "pe",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi bi",
+      "expected": "bi",
+      "answer_choices": [
+        "vi",
+        "bi"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo ku",
+      "expected": "ku",
+      "answer_choices": [
+        "zo",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si ba",
+      "expected": "ba",
+      "answer_choices": [
+        "si",
+        "ba"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si zo",
+      "expected": "zo",
+      "answer_choices": [
+        "si",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "fo zo",
+      "expected": "zo",
+      "answer_choices": [
+        "fo",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo si",
+      "expected": "si",
+      "answer_choices": [
+        "zo",
+        "si"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "pe ba",
+      "expected": "ba",
+      "answer_choices": [
+        "pe",
+        "ba"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ba me",
+      "expected": "me",
+      "answer_choices": [
+        "ba",
+        "me"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "vi re",
+      "expected": "re",
+      "answer_choices": [
+        "vi",
+        "re"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si fo",
+      "expected": "fo",
+      "answer_choices": [
+        "si",
+        "fo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si re",
+      "expected": "re",
+      "answer_choices": [
+        "si",
+        "re"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "si vi",
+      "expected": "vi",
+      "answer_choices": [
+        "si",
+        "vi"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "pe zo",
+      "expected": "zo",
+      "answer_choices": [
+        "pe",
+        "zo"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "re si",
+      "expected": "si",
+      "answer_choices": [
+        "re",
+        "si"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ba ku",
+      "expected": "ku",
+      "answer_choices": [
+        "ba",
+        "ku"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "zo pe",
+      "expected": "pe",
+      "answer_choices": [
+        "zo",
+        "pe"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    },
+    {
+      "query": "ku si",
+      "expected": "si",
+      "answer_choices": [
+        "ku",
+        "si"
+      ],
+      "metadata": {
+        "rule": "ABB",
+        "source": "Marcus 1999",
+        "note": "Eval syllables novel relative to ICL syllable pool"
+      }
+    }
+  ],
+  "rules_icl": {
+    "ABA": [
+      [
+        "ta ti",
+        "ta"
+      ],
+      [
+        "da li",
+        "da"
+      ],
+      [
+        "na fe",
+        "na"
+      ],
+      [
+        "na ro",
+        "na"
+      ],
+      [
+        "wo ro",
+        "wo"
+      ],
+      [
+        "de wo",
+        "de"
+      ],
+      [
+        "fe ro",
+        "fe"
+      ],
+      [
+        "wo li",
+        "wo"
+      ],
+      [
+        "li de",
+        "li"
+      ],
+      [
+        "ga ro",
+        "ga"
+      ],
+      [
+        "fe ga",
+        "fe"
+      ],
+      [
+        "da ga",
+        "da"
+      ],
+      [
+        "ta de",
+        "ta"
+      ],
+      [
+        "da ro",
+        "da"
+      ],
+      [
+        "li wo",
+        "li"
+      ],
+      [
+        "na li",
+        "na"
+      ],
+      [
+        "li na",
+        "li"
+      ],
+      [
+        "ta wo",
+        "ta"
+      ],
+      [
+        "wo ti",
+        "wo"
+      ],
+      [
+        "li ta",
+        "li"
+      ]
+    ],
+    "ABB": [
+      [
+        "ta ti",
+        "ti"
+      ],
+      [
+        "da li",
+        "li"
+      ],
+      [
+        "na fe",
+        "fe"
+      ],
+      [
+        "na ro",
+        "ro"
+      ],
+      [
+        "wo ro",
+        "ro"
+      ],
+      [
+        "de wo",
+        "wo"
+      ],
+      [
+        "fe ro",
+        "ro"
+      ],
+      [
+        "wo li",
+        "li"
+      ],
+      [
+        "li de",
+        "de"
+      ],
+      [
+        "ga ro",
+        "ro"
+      ],
+      [
+        "fe ga",
+        "ga"
+      ],
+      [
+        "da ga",
+        "ga"
+      ],
+      [
+        "ta de",
+        "de"
+      ],
+      [
+        "da ro",
+        "ro"
+      ],
+      [
+        "li wo",
+        "wo"
+      ],
+      [
+        "na li",
+        "li"
+      ],
+      [
+        "li na",
+        "na"
+      ],
+      [
+        "ta wo",
+        "wo"
+      ],
+      [
+        "wo ti",
+        "ti"
+      ],
+      [
+        "li ta",
+        "ta"
+      ]
+    ]
+  },
+  "hierarchical": [
+    {
+      "query": "NVTT",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "RREE",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "CXHS",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "YYPP",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "BDBB",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "RASM",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "KKKK",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "ZBYY",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "PKPR",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "XUDD",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "CCPP",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "NXOB",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "CZXX",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "ZVSS",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "REPP",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "VVMP",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "OOOO",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "DAZZ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "VVDV",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "UUAX",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "QQJC",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "LLQB",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "NRQH",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "XXZZ",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "BAKA",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "VVDD",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "LAJJ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "KKVV",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "UQRR",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "JYCC",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "XYFF",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "XXTQ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "QVGK",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "OOCQ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "PPEE",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "XXNZ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "GGEE",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "VVBB",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "ZZLW",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "DJRX",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "RCDD",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "FOOY",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "SSRY",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "NNJJ",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "XBGZ",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "HSVV",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "XBEZ",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "HTGT",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "ZGZZ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "JJBB",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "SQFF",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "NTYY",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "DDVV",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "ERUV",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "QZPN",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "WWYG",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "NTPP",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "HDMM",
+      "expected": "0",
+      "metadata": {
+        "pattern": "different-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "JJYZ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "QQBG",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "TYRF",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "JJQZ",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "NYFP",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "LPQL",
+      "expected": "1",
+      "metadata": {
+        "pattern": "different-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "HHNV",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "BBPI",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "UUOO",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "OORR",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "KKNP",
+      "expected": "0",
+      "metadata": {
+        "pattern": "same-different",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    },
+    {
+      "query": "AAAA",
+      "expected": "1",
+      "metadata": {
+        "pattern": "same-same",
+        "source": "Marcus 2001 / Geiger 2022"
+      }
+    }
+  ],
+  "hierarchical_icl": [
+    [
+      "CBKK",
+      "0"
+    ],
+    [
+      "BJKC",
+      "1"
+    ],
+    [
+      "FFPG",
+      "0"
+    ],
+    [
+      "DDRD",
+      "0"
+    ],
+    [
+      "RQCH",
+      "1"
+    ],
+    [
+      "CKZV",
+      "1"
+    ],
+    [
+      "MMHH",
+      "1"
+    ],
+    [
+      "KKTT",
+      "1"
+    ],
+    [
+      "PPII",
+      "1"
+    ],
+    [
+      "OOIH",
+      "0"
+    ],
+    [
+      "EEDV",
+      "0"
+    ],
+    [
+      "PPNN",
+      "1"
+    ],
+    [
+      "STLH",
+      "1"
+    ],
+    [
+      "EGDD",
+      "0"
+    ],
+    [
+      "KURR",
+      "0"
+    ],
+    [
+      "TTDL",
+      "0"
+    ],
+    [
+      "GGXX",
+      "1"
+    ],
+    [
+      "TUHM",
+      "1"
+    ],
+    [
+      "KKIP",
+      "0"
+    ],
+    [
+      "SSPP",
+      "1"
+    ]
+  ]
+}

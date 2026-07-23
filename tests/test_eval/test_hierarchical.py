@@ -123,6 +123,12 @@ def test_score_incorrect(task):
     assert task.score(ModelResponse(text="0"), s) is False
 
 
+def test_score_empty_response(task):
+    s = Stimulus(query="AABB", expected="1")
+    assert task.score(ModelResponse(text=""), s) is False
+    assert task.score(ModelResponse(text="   \n"), s) is False
+
+
 def test_format_completion_prepends_space(task):
     s = Stimulus(query="AABB", expected="1")
     assert task.format_completion(s, "0") == " 0"

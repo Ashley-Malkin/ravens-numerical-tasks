@@ -116,8 +116,8 @@ def test_save_results_writes_json(tmp_path):
     assert len(data) == 2
 
 
-def test_evaluate_forced_choice_correct_when_generation_matches():
-    # Correctness is determined by task.score() on generated text, not logprobs
+def test_evaluate_free_gen_correct_when_generation_matches():
+    # Default score_mode=free_gen: correctness from task.score() on generated text
     stimulus = Stimulus(
         query="AABB ", expected="1", answer_choices=["0", "1"]
     )
@@ -126,9 +126,9 @@ def test_evaluate_forced_choice_correct_when_generation_matches():
     assert results[0].score.correct is True
 
 
-def test_evaluate_forced_choice_correct_even_when_logprobs_disagree():
+def test_evaluate_free_gen_correct_even_when_logprobs_disagree():
     # generate() returns "1" which matches expected; logprobs favor "0" but
-    # correctness is based on generated text, not logprob argmax.
+    # free_gen correctness is based on generated text, not logprob argmax.
     stimulus = Stimulus(
         query="AABB ", expected="1", answer_choices=["0", "1"]
     )
@@ -137,7 +137,7 @@ def test_evaluate_forced_choice_correct_even_when_logprobs_disagree():
     assert results[0].score.correct is True
 
 
-def test_evaluate_forced_choice_incorrect_when_generation_is_gibberish():
+def test_evaluate_free_gen_incorrect_when_generation_is_gibberish():
     # Logprob comparison favors expected "1", but generated text is gibberish
     stimulus = Stimulus(
         query="AABB ", expected="1", answer_choices=["0", "1"]
@@ -145,6 +145,146 @@ def test_evaluate_forced_choice_incorrect_when_generation_is_gibberish():
     backend = StubBackend(text="parem dem chamama", logprobs_by_completion={"0": -3.0, "1": -1.0})
     results = evaluate(StubTask(), backend, n_examples=0, stimuli=[stimulus])
     assert results[0].score.correct is False
+
+
+def test_evaluate_forced_choice_uses_logprob_argmax():
+    # When generation is not a valid choice, fall back to logprob argmax
+    stimulus = Stimulus(
+        query="AABB ", expected="1", answer_choices=["0", "1"]
+    )
+    backend = StubBackend(
+        text="parem dem chamama",
+        logprobs_by_completion={"0": -3.0, "1": -1.0},
+    )
+    results = evaluate(
+        StubTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.correct is True
+    assert results[0].score.logprob_argmax_correct is True
+
+
+def test_evaluate_forced_choice_prefers_constrained_generation():
+    # Constrained gen says "0" but logprobs favor "1" → grade from generation
+    stimulus = Stimulus(
+        query="AABB ", expected="1", answer_choices=["0", "1"]
+    )
+    backend = StubBackend(
+        text="0",
+        logprobs_by_completion={"0": -3.0, "1": -1.0},
+    )
+    results = evaluate(
+        StubTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.correct is False
+    assert results[0].score.logprob_argmax_correct is True
+
+
+class ClosingBracketTask(StubTask):
+    """Stub like Raven/matrix_easy completion (choice + ``]``)."""
+
+    def format_completion(self, stimulus, choice):
+        return choice + "]"
+
+
+def test_evaluate_forced_choice_matches_formatted_completion_text():
+    stimulus = Stimulus(
+        query="[", expected="12", answer_choices=["12", "10", "8", "18"]
+    )
+    backend = StubBackend(
+        text="12]",
+        logprobs_by_completion={"12]": -1.0, "10]": -3.0, "8]": -4.0, "18]": -5.0},
+    )
+    results = evaluate(
+        ClosingBracketTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.correct is True
+    assert results[0].score.logprob_argmax_correct is True
+
+
+def test_evaluate_forced_choice_does_not_hijack_long_cell_with_short_prefix():
+    """Multi-token cell ``5 7 4 1]...`` must not match distractor ``5`` via first token."""
+    stimulus = Stimulus(
+        query="[",
+        expected="5 7 4 1",
+        answer_choices=["5", "7 4", "5 4 1", "5 7 4 1"],
+    )
+    backend = StubBackend(
+        text="5 7 4 1]\n\n[6] [7] [6 7]\n[",
+        logprobs_by_completion={
+            "5]": -8.0,
+            "7 4]": -9.0,
+            "5 4 1]": -7.0,
+            "5 7 4 1]": -4.0,
+        },
+    )
+    results = evaluate(
+        ClosingBracketTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.correct is True
+    assert results[0].score.logprob_argmax_correct is True
+
+
+def test_evaluate_forced_choice_falls_back_when_prefix_hijack_would_apply():
+    """If span is multi-token gibberish starting with a short choice, use logprobs."""
+    stimulus = Stimulus(
+        query="[",
+        expected="5 7 4 1",
+        answer_choices=["5", "7 4", "5 4 1", "5 7 4 1"],
+    )
+    backend = StubBackend(
+        text="5 9 9]\n[",
+        logprobs_by_completion={
+            "5]": -8.0,
+            "7 4]": -9.0,
+            "5 4 1]": -7.0,
+            "5 7 4 1]": -4.0,
+        },
+    )
+    results = evaluate(
+        ClosingBracketTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    # No exact choice match → echo logprob argmax (correct option).
+    assert results[0].score.correct is True
+    assert results[0].score.logprob_argmax_correct is True
+
+
+def test_evaluate_forced_choice_incorrect_when_logprobs_favor_wrong():
+    stimulus = Stimulus(
+        query="AABB ", expected="1", answer_choices=["0", "1"]
+    )
+    backend = StubBackend(
+        text="gibberish",
+        logprobs_by_completion={"0": -1.0, "1": -3.0},
+    )
+    results = evaluate(
+        StubTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.correct is False
+    assert results[0].score.logprob_argmax_correct is False
 
 
 def test_evaluate_forced_choice_stores_logprob_of_expected():
