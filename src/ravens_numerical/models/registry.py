@@ -124,6 +124,30 @@ BABYLM_SCALING_MODELS: tuple[str, ...] = (
 
 DEFAULT_BABYLM_VLLM = BABYLM_SCALING_MODELS[0]
 
+# CHILDES GPT-2 developmental ladder (single Hub repo; checkpoints are subfolders).
+CHILDES_LADDER_REPO = "mcxfrank/childes-gpt2-ladder"
+CHILDES_LADDER_SEED = 42
+CHILDES_LADDER_BUDGETS: tuple[str, ...] = ("1M", "5M", "12M", "24M")
+
+
+def childes_ladder_model_id(
+    budget: str,
+    *,
+    seed: int = CHILDES_LADDER_SEED,
+) -> str:
+    """Logical id: ``mcxfrank/childes-gpt2-ladder/development/seed{S}/rung{B}``."""
+    b = budget.strip()
+    if b.lower().endswith("m") and not b.endswith("M"):
+        b = b[:-1] + "M"
+    return f"{CHILDES_LADDER_REPO}/development/seed{seed}/rung{b}"
+
+
+CHILDES_SCALING_MODELS: tuple[str, ...] = tuple(
+    childes_ladder_model_id(b) for b in CHILDES_LADDER_BUDGETS
+)
+
+DEFAULT_CHILDES_VLLM = CHILDES_SCALING_MODELS[0]
+
 _MINIBERTA_CORPUS_SIZES = ("1M", "10M", "100M", "1B")
 _MINIBERTA_SEEDS = (1, 2, 3)
 
@@ -156,6 +180,7 @@ MODEL_GPU_TIER: dict[str, str] = {
     "Qwen/Qwen3-14B": "A100",
     "BabyLM-community/babylm-baseline-10m-gpt2": "T4",
     "BabyLM-community/babylm-baseline-100m-gpt2": "T4",
+    **{mid: "T4" for mid in CHILDES_SCALING_MODELS},
     "allenai/OLMo-2-0425-1B": "T4",
     "allenai/OLMo-2-0425-1B-Instruct": "T4",
     "allenai/OLMo2-7B-1124": "A10G",
@@ -181,6 +206,16 @@ _BABYLM_PARAMS_B = 0.124
 _BABYLM_MAX_LEN = 1024
 
 _BABYLM_CORPUS_RE = re.compile(r"babylm-baseline-(\d+)m-gpt2", re.I)
+
+# CHILDES ladder: GPT-2-small (~125.8M), context 1024, custom 52k tokenizer.
+_CHILDES_PARAMS_B = 0.126
+_CHILDES_MAX_LEN = 1024
+_CHILDES_SHORT_RE = re.compile(r"^childes-(\d+(?:\.\d+)?)[mM]$", re.I)
+_CHILDES_SUBFOLDER_RE = re.compile(
+    r"^development/seed(\d+)/rung(\d+(?:\.\d+)?)[mM]$",
+    re.I,
+)
+_CHILDES_RUNG_CORPUS_RE = re.compile(r"rung(\d+(?:\.\d+)?)[mM]", re.I)
 
 _MINIBERTA_MED_SMALL_PARAMS_B = 0.045
 _MINIBERTA_BASE_PARAMS_B = 0.125
@@ -323,6 +358,10 @@ def olmo2_checkpoint_model_ids() -> list[str]:
 
 def gpu_tier_for_model(model_id: str) -> str:
     """Return Modal GPU tier (``T4``, ``A10G``, or ``A100``) for a HuggingFace model id."""
+    if is_sft_checkpoint_model(model_id):
+        return "T4"
+    if is_childes_model(model_id):
+        return "T4"
     return MODEL_GPU_TIER.get(base_model_id(model_id), DEFAULT_GPU_TIER)
 
 
@@ -331,6 +370,9 @@ def max_model_len_for_model(model_id: str, default: int = 2048) -> int:
     model_id = base_model_id(model_id)
     if is_miniberta_model(model_id):
         return _MINIBERTA_MAX_LEN
+    # Base ladder ids + SFT run_ids / Volume paths (``.../childes-seed42-rung…``).
+    if is_childes_model(model_id) or "childes-" in model_id.lower():
+        return _CHILDES_MAX_LEN
     if "babylm" in model_id.lower():
         return _BABYLM_MAX_LEN
     params_b = parse_params_billions(model_id)
@@ -343,6 +385,8 @@ def model_family(model_id: str) -> str:
     model_id = base_model_id(model_id)
     if is_miniberta_model(model_id):
         return "miniberta"
+    if is_childes_model(model_id) or "childes-" in model_id.lower():
+        return "childes"
     if "babylm" in model_id.lower():
         return "babylm"
     if "pythia" in model_id.lower():
@@ -398,11 +442,142 @@ def is_babylm_model(model_id: str) -> bool:
     return model_family(model_id) == "babylm"
 
 
+def _normalize_childes_budget(raw: str) -> str:
+    b = raw.strip()
+    if b.lower().endswith("m"):
+        return b[:-1] + "M"
+    return b
+
+
+def parse_childes_ladder_id(model_id: str) -> tuple[str, str] | None:
+    """Parse a CHILDES ladder id into ``(repo_id, subfolder)``.
+
+    Accepts short aliases (``childes-1M``) and full logical ids
+    (``mcxfrank/childes-gpt2-ladder/development/seed42/rung1M``).
+    """
+    mid = model_id.strip().rstrip("/")
+    short = _CHILDES_SHORT_RE.match(mid)
+    if short:
+        budget = _normalize_childes_budget(short.group(1) + "M")
+        sub = f"development/seed{CHILDES_LADDER_SEED}/rung{budget}"
+        return CHILDES_LADDER_REPO, sub
+
+    prefix = f"{CHILDES_LADDER_REPO}/"
+    if not mid.startswith(prefix):
+        return None
+    sub = mid[len(prefix) :]
+    m = _CHILDES_SUBFOLDER_RE.match(sub)
+    if not m:
+        return None
+    seed, budget = m.group(1), _normalize_childes_budget(m.group(2) + "M")
+    return CHILDES_LADDER_REPO, f"development/seed{seed}/rung{budget}"
+
+
+def normalize_childes_model_id(model_id: str) -> str:
+    """Expand short CHILDES aliases to the full logical Hub+subfolder id."""
+    parsed = parse_childes_ladder_id(model_id)
+    if parsed is None:
+        return model_id.strip().rstrip("/")
+    repo, sub = parsed
+    return f"{repo}/{sub}"
+
+
+def is_childes_model(model_id: str) -> bool:
+    """True for CHILDES ladder Hub/subfolder ids (not SFT run_ids)."""
+    return parse_childes_ladder_id(model_id) is not None
+
+
+def childes_model_tag(model_id: str) -> str | None:
+    """Short run_id tag like ``childes-seed42-rung1M``, or ``None`` if not CHILDES."""
+    parsed = parse_childes_ladder_id(model_id)
+    if parsed is None:
+        return None
+    _, sub = parsed
+    # development/seed42/rung1M → childes-seed42-rung1M
+    parts = sub.split("/")
+    if len(parts) >= 3:
+        return f"childes-{parts[1]}-{parts[2]}"
+    return f"childes-{parts[-1]}"
+
+
+def resolve_childes_local_path(
+    model_id: str,
+    *,
+    cache_dir: str | None = None,
+) -> str:
+    """Download a CHILDES rung subfolder and return its local directory path.
+
+    Non-CHILDES ids are returned unchanged. Uses ``huggingface_hub.snapshot_download``
+    with ``allow_patterns`` so only the requested rung is fetched.
+    """
+    from pathlib import Path
+
+    parsed = parse_childes_ladder_id(model_id)
+    if parsed is None:
+        return model_id.strip().rstrip("/")
+    repo, subfolder = parsed
+    from huggingface_hub import snapshot_download
+
+    root = snapshot_download(
+        repo_id=repo,
+        allow_patterns=[f"{subfolder}/**"],
+        cache_dir=cache_dir,
+    )
+    local = Path(root) / subfolder
+    if not local.is_dir():
+        raise FileNotFoundError(
+            f"CHILDES ladder subfolder not found after download: {local} "
+            f"(repo={repo!r}, subfolder={subfolder!r})"
+        )
+    return str(local)
+
+
+# --- BabyLM SFT Volume checkpoints (Modal ``ravens-babylm-sft``) ---
+
+SFT_CHECKPOINTS_ROOT = "/checkpoints"
+
+
+def is_sft_run_id(model_id: str) -> bool:
+    """True for a bare SFT ``run_id`` (``tag__run_name__timestamp``, no ``/``)."""
+    mid = model_id.strip()
+    if not mid or "/" in mid or "@" in mid or ":" in mid:
+        return False
+    return "__" in mid
+
+
+def is_sft_checkpoint_model(model_id: str) -> bool:
+    """True for Volume paths under ``/checkpoints/`` or bare SFT run ids."""
+    mid = model_id.strip()
+    if mid.startswith(f"{SFT_CHECKPOINTS_ROOT}/"):
+        return True
+    return is_sft_run_id(mid)
+
+
+def resolve_sft_model_id(model_id: str) -> str:
+    """Map a bare SFT ``run_id`` to ``/checkpoints/<run_id>``; passthrough paths."""
+    mid = model_id.strip().rstrip("/")
+    if mid.startswith(f"{SFT_CHECKPOINTS_ROOT}/"):
+        return mid
+    if is_sft_run_id(mid):
+        return f"{SFT_CHECKPOINTS_ROOT}/{mid}"
+    return mid
+
+
+def sft_run_id_from_model_id(model_id: str) -> str:
+    """Extract ``run_id`` from a Volume path or bare id."""
+    mid = resolve_sft_model_id(model_id) if is_sft_checkpoint_model(model_id) else model_id.strip()
+    prefix = f"{SFT_CHECKPOINTS_ROOT}/"
+    if mid.startswith(prefix):
+        return mid[len(prefix) :].strip("/")
+    return mid.strip("/")
+
+
 def uses_completions_choice_only(model_id: str) -> bool:
     """Causal LMs using completions + structured choice for instruction choice_only."""
     return (
         is_pythia_model(model_id)
         or is_babylm_model(model_id)
+        or is_childes_model(model_id)
         or is_qwen3_base_model(model_id)
         or is_olmo2_base_model(model_id)
     )
@@ -422,6 +597,8 @@ def parse_params_billions(model_id: str) -> float | None:
         if "med-small" in model_id.lower():
             return _MINIBERTA_MED_SMALL_PARAMS_B
         return _MINIBERTA_BASE_PARAMS_B
+    if is_childes_model(model_id) or "childes-" in model_id.lower():
+        return _CHILDES_PARAMS_B
     if is_babylm_model(model_id):
         return _BABYLM_PARAMS_B
     m = _SIZE_RE.search(model_id)
@@ -451,6 +628,12 @@ def parse_training_corpus_millions(model_id: str) -> float | None:
         if unit == "b":
             return value * 1000.0
         return value
+    m = _CHILDES_RUNG_CORPUS_RE.search(model_id)
+    if m:
+        return float(m.group(1))
+    short = _CHILDES_SHORT_RE.match(model_id.strip().rstrip("/"))
+    if short:
+        return float(short.group(1))
     m = _BABYLM_CORPUS_RE.search(model_id)
     if not m:
         return None
@@ -476,6 +659,15 @@ _MODEL_ARG_ALIASES: dict[str, tuple[str, ...]] = {
     "olmo2": OLMO2_MODELS,
     "qwen3": QWEN3_SCALING_MODELS,
     "babylm": BABYLM_SCALING_MODELS,
+    "childes": CHILDES_SCALING_MODELS,
+    **{
+        f"childes-{b}": (childes_ladder_model_id(b),)
+        for b in CHILDES_LADDER_BUDGETS
+    },
+    **{
+        f"childes-{b.lower()}": (childes_ladder_model_id(b),)
+        for b in CHILDES_LADDER_BUDGETS
+    },
     "miniberta": MINIBERTA_SCALING_MODELS,
     "minibertas": MINIBERTA_SCALING_MODELS,
 }
@@ -487,11 +679,12 @@ def resolve_models_arg(models: str) -> list[str]:
     - ``sweep`` → ``SCALING_SWEEP_MODELS``
     - ``pythia`` / ``pythia-checkpoints`` / ``olmo`` / ``olmo2`` /
       ``olmo-checkpoints`` / ``olmo2-checkpoints`` / ``qwen3`` / ``babylm`` /
-      ``miniberta`` → family subset
+      ``childes`` / ``miniberta`` → family subset
     - comma-separated HF ids → explicit list (``...@stepN`` / ``...@stage1-...``)
+    - BabyLM SFT ``run_id`` (``…__…__…``) or ``/checkpoints/<run_id>`` → Volume path
 
-    Bare names without ``/`` that are not aliases raise ``ValueError`` (avoids
-    ``vllm serve olmo`` → ``huggingface.co/olmo`` 401 failures).
+    Bare names without ``/`` that are not aliases or SFT run ids raise ``ValueError``
+    (avoids ``vllm serve olmo`` → ``huggingface.co/olmo`` 401 failures).
     """
     key = models.strip().lower()
     if key in _MODEL_ARG_ALIASES:
@@ -501,18 +694,31 @@ def resolve_models_arg(models: str) -> list[str]:
     if key in ("olmo-checkpoints", "olmo2-checkpoints"):
         return olmo2_checkpoint_model_ids()
 
-    resolved = [m.strip() for m in models.split(",") if m.strip()]
+    raw = [m.strip() for m in models.split(",") if m.strip()]
+    resolved: list[str] = []
+    for mid in raw:
+        if is_sft_checkpoint_model(mid):
+            resolved.append(resolve_sft_model_id(mid))
+        elif is_childes_model(mid):
+            resolved.append(normalize_childes_model_id(mid))
+        else:
+            resolved.append(mid)
+
     alias_names = sorted(
         set(_MODEL_ARG_ALIASES)
         | {"pythia-checkpoints", "olmo-checkpoints", "olmo2-checkpoints"}
     )
     for mid in resolved:
         # HF ids contain ``/``; checkpoint forms contain ``@``; Ollama tags use ``:``.
+        # SFT Volume paths also contain ``/``.
         if "/" in mid or "@" in mid or ":" in mid:
             continue
         raise ValueError(
             f"Unknown model id {mid!r}. Pass a HuggingFace id "
-            f"(e.g. allenai/OLMo2-7B-1124) or one of the aliases: "
-            f"{', '.join(alias_names)}."
+            f"(e.g. allenai/OLMo2-7B-1124), an SFT run_id "
+            f"(e.g. babylm-10m-gpt2__all_types__20260723T212815Z), "
+            f"alias babylm-sft (BabyLM Volume SFT only), "
+            f"childes-sft (CHILDES Volume SFT only), "
+            f"or one of the aliases: {', '.join(alias_names)}."
         )
     return resolved
