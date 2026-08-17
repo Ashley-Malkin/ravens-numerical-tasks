@@ -1,0 +1,5 @@
+# Example holdout: omit progression from train/val.
+# Eval still uses the fixed full complete.json (including progression).
+run_name: holdout_progression
+holdout_types:
+  - progression

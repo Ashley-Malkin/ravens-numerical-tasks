@@ -21,6 +21,7 @@ from ravens_numerical.scoring.choice_logprobs import (
     multiclass_brier_score,
     parse_logprobs_by_letter_vllm,
 )
+from ravens_numerical.scoring.echo_logprobs import unique_logprob_argmax
 
 
 def _task_name(task: Task) -> str:
@@ -134,13 +135,35 @@ def evaluate(
                 max_lp = max(valid.values())
                 denom = sum(math.exp(lp - max_lp) for lp in valid.values())
                 lp_c = valid.get(stimulus.expected)
-                prob_correct = math.exp(lp_c - max_lp) / denom if lp_c is not None else None
-                pred = max(valid, key=valid.get)
+                prob_correct = (
+                    math.exp(lp_c - max_lp) / denom if lp_c is not None else None
+                )
+                pred = unique_logprob_argmax(valid)
                 if score_mode == "forced_choice":
-                    logprob_argmax_correct = pred == stimulus.expected
-                    # Prefer constrained / exact generation match; else echo
-                    # logprob argmax. Do not let a short first-token distractor
-                    # override a longer cell completion.
+                    logprob_argmax_correct = (
+                        pred == stimulus.expected if pred is not None else None
+                    )
+                    # Echo argmax is the forced-choice decision (length-normalized,
+                    # degenerate near-ties abstain). Generation match is only used
+                    # when echo is unusable (None).
+                    if pred is not None:
+                        correct = bool(logprob_argmax_correct)
+                    else:
+                        matched = _match_forced_choice_generation(
+                            task, stimulus, response.text or ""
+                        )
+                        if matched is not None:
+                            correct = (
+                                matched.lower()
+                                == stimulus.expected.strip().lower()
+                            )
+                        else:
+                            correct = False
+                else:
+                    correct = task.score(response, stimulus)
+            else:
+                prob_correct = None
+                if score_mode == "forced_choice":
                     matched = _match_forced_choice_generation(
                         task, stimulus, response.text or ""
                     )
@@ -148,13 +171,12 @@ def evaluate(
                         correct = (
                             matched.lower() == stimulus.expected.strip().lower()
                         )
+                        logprob_argmax_correct = None
                     else:
-                        correct = logprob_argmax_correct
+                        correct = False
+                        logprob_argmax_correct = None
                 else:
                     correct = task.score(response, stimulus)
-            else:
-                prob_correct = None
-                correct = task.score(response, stimulus)
             answer_logprobs = logprobs
         else:
             correct = task.score(response, stimulus)

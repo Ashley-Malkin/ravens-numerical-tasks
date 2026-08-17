@@ -1,4 +1,4 @@
-"""Raven's numerical tasks from ``data/tasks.json`` (or Webb ``tasks_webb.json``)."""
+"""Raven's numerical tasks from ``data/complete.json`` (or Webb ``tasks_webb.json``)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from ravens_numerical.eval.tasks.base import ModelResponse, Stimulus, Task
 from ravens_numerical.parsing.answer_parse import parse_answer
-from ravens_numerical.paths import REPO_ROOT, TASKS_JSON
+from ravens_numerical.paths import REPO_ROOT, COMPLETE_JSON
 from ravens_numerical.prompts.prompts import (
     IclExample,
     build_prompt,
@@ -71,7 +71,7 @@ class RavensNumericalTask(Task):
         load_icl_from_json: bool = False,
     ) -> None:
         self._repo_root = Path(ravens_repo_root) if ravens_repo_root is not None else REPO_ROOT
-        self._tasks_path = Path(tasks_json) if tasks_json is not None else TASKS_JSON
+        self._tasks_path = Path(tasks_json) if tasks_json is not None else COMPLETE_JSON
         self._max_tasks = max_tasks
         self._rng = rng or random.Random()
         self._prompt_type: PromptType = prompt_type
@@ -85,7 +85,7 @@ class RavensNumericalTask(Task):
         if not self._tasks_path.is_file():
             raise FileNotFoundError(
                 f"ravens tasks JSON not found: {self._tasks_path}. "
-                "Set --ravens-tasks-json or install the package with data/tasks.json."
+                "Set --ravens-tasks-json or install the package with data/complete.json."
             )
         data = json.loads(self._tasks_path.read_text(encoding="utf-8"))
         raw: list = data.get("tasks", data)
@@ -100,6 +100,7 @@ class RavensNumericalTask(Task):
             raise ValueError(f"No valid tasks loaded from {self._tasks_path}")
 
         if self._icl_examples is None and self._load_icl_from_json and "icl" in data:
+            # Top-level type→demos bank (Webb / legacy shared-bank ICL files).
             self._icl_examples = _normalize_icl_bank(data["icl"])
 
     def _task_to_stimulus(self, task: dict[str, Any]) -> Stimulus:
@@ -137,12 +138,17 @@ class RavensNumericalTask(Task):
     def build_prompt(self, stimulus: Stimulus, n_examples: int) -> str:
         task = stimulus.metadata["task"]
         mode = self._prompt_mode if self._prompt_type == "instruction" else "plain"
+        # Prefer per-task ``icl`` (unique demos per item) over a shared bank.
+        icl_examples = self._icl_examples
+        per_task = task.get("icl")
+        if isinstance(per_task, list) and per_task:
+            icl_examples = {str(task["task_type"]): list(per_task)}
         return build_prompt(
             task,
             mode=mode,
             n_examples=n_examples,
             prompt_type=self._prompt_type,
-            icl_examples=self._icl_examples,
+            icl_examples=icl_examples,
         )
 
     @property

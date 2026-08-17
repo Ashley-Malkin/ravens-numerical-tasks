@@ -1,0 +1,8 @@
+torch>=2.2
+transformers>=4.46
+trl>=0.14
+datasets>=2.19
+accelerate>=0.30
+pyyaml>=6.0
+tensorboard>=2.14
+modal>=0.64

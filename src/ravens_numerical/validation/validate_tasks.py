@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Validate tasks.json: structure, semantic correctness, correct_index, correct_letter."""
+"""Validate complete.json / tasks.json: structure, semantic correctness, letters."""
+
+from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
-from ravens_numerical.generation.generator import TASK_TYPE_CYCLE
-from ravens_numerical.paths import TASKS_JSON
+from ravens_numerical.generation.generator import LEGACY_TASK_TYPE_CYCLE, TASK_TYPE_CYCLE
+from ravens_numerical.paths import COMPLETE_JSON, TASKS_JSON
 
 LETTERS = "ABCD"
 
@@ -165,6 +166,68 @@ def validate_task(i: int, task: dict) -> list[str]:
                     if picked != want:
                         errs.append(f"task {i}: intersection picked {picked} expected {want}")
 
+        elif tt == "distribution_of_three":
+            if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+                errs.append(f"task {i}: distribution_of_three expects 3x3")
+            else:
+                a, b, c = matrix[0]
+                exp = [[a, b, c], [b, c, a], [c, a, None]]
+                if matrix != exp:
+                    errs.append(f"task {i}: distribution_of_three row shift mismatch")
+                if picked != b:
+                    errs.append(
+                        f"task {i}: distribution_of_three picked {picked} expected {b}"
+                    )
+                others = [o for o in opts if o != picked]
+                from_set = [o for o in others if o in {a, b, c}]
+                if len(from_set) != 2:
+                    errs.append(
+                        f"task {i}: distribution_of_three expected 2 distractors "
+                        f"from the triple, got {from_set}"
+                    )
+
+        elif tt == "progression_plus_n":
+            if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+                errs.append(f"task {i}: progression_plus_n expects 3x3")
+            else:
+                step = matrix[0][1] - matrix[0][0]
+                if step <= 0:
+                    errs.append(f"task {i}: progression_plus_n non-positive step {step}")
+                for r in range(2):
+                    if matrix[r][1] - matrix[r][0] != step or matrix[r][2] - matrix[r][1] != step:
+                        errs.append(f"task {i}: progression_plus_n row {r} step mismatch")
+                if matrix[2][1] - matrix[2][0] != step:
+                    errs.append(f"task {i}: progression_plus_n last-row step mismatch")
+                want = matrix[2][0] + 2 * step
+                if picked != want:
+                    errs.append(
+                        f"task {i}: progression_plus_n picked {picked} expected {want}"
+                    )
+
+        elif tt == "tuple_grid":
+            if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+                errs.append(f"task {i}: tuple_grid expects 3x3")
+            else:
+                row_keys = [matrix[r][0][0] for r in range(3)]
+                col_keys = [matrix[0][c][1] for c in range(3)]
+                for r in range(3):
+                    for c in range(3):
+                        cell = matrix[r][c]
+                        if r == 2 and c == 2:
+                            if cell is not None:
+                                errs.append(f"task {i}: tuple_grid blank must be null")
+                            continue
+                        if not isinstance(cell, list) or len(cell) != 2:
+                            errs.append(f"task {i}: tuple_grid cell ({r},{c}) not a pair")
+                        elif cell[0] != row_keys[r] or cell[1] != col_keys[c]:
+                            errs.append(
+                                f"task {i}: tuple_grid cell ({r},{c})={cell} "
+                                f"expected {[row_keys[r], col_keys[c]]}"
+                            )
+                want = [row_keys[2], col_keys[2]]
+                if picked != want:
+                    errs.append(f"task {i}: tuple_grid picked {picked} expected {want}")
+
         else:
             errs.append(f"task {i}: unknown task_type {tt!r}")
 
@@ -174,11 +237,16 @@ def validate_task(i: int, task: dict) -> list[str]:
     return errs
 
 
-def validate_interleaved_order(tasks: list[dict]) -> list[str]:
-    """Ensure tasks.json uses the 7-type round-robin (so max_tasks slices cover all types)."""
+def validate_interleaved_order(
+    tasks: list[dict],
+    *,
+    type_cycle: tuple[str, ...] | None = None,
+) -> list[str]:
+    """Ensure round-robin order so max_tasks slices cover all types."""
+    cycle = type_cycle or TASK_TYPE_CYCLE
     errs: list[str] = []
     for i, task in enumerate(tasks):
-        expected = TASK_TYPE_CYCLE[i % len(TASK_TYPE_CYCLE)]
+        expected = cycle[i % len(cycle)]
         actual = task.get("task_type")
         if actual != expected:
             errs.append(
@@ -189,12 +257,13 @@ def validate_interleaved_order(tasks: list[dict]) -> list[str]:
 
 
 def main() -> int:
-    path = TASKS_JSON
+    path = COMPLETE_JSON if COMPLETE_JSON.is_file() else TASKS_JSON
+    cycle = TASK_TYPE_CYCLE if path == COMPLETE_JSON else LEGACY_TASK_TYPE_CYCLE
     with open(path) as f:
         data = json.load(f)
     tasks = data.get("tasks", data)
     all_errs: list[str] = []
-    all_errs.extend(validate_interleaved_order(tasks))
+    all_errs.extend(validate_interleaved_order(tasks, type_cycle=cycle))
     for i, task in enumerate(tasks):
         all_errs.extend(validate_task(i, task))
     if all_errs:

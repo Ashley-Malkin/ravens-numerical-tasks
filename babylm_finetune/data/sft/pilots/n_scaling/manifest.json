@@ -1,0 +1,80 @@
+{
+  "seed": 20260730,
+  "sizes": [
+    50,
+    100,
+    250,
+    500,
+    1000
+  ],
+  "train_file": "babylm_finetune/data/sft/train.jsonl",
+  "train_count": 1260,
+  "nested": true,
+  "pilots": {
+    "50": {
+      "path": "babylm_finetune/data/sft/pilots/n_scaling/train_n50.jsonl",
+      "count": 50,
+      "by_task_type": {
+        "progression": 7,
+        "pattern": 7,
+        "pattern_tuple": 7,
+        "constancy_row": 7,
+        "constancy": 8,
+        "combine": 7,
+        "intersection": 7
+      }
+    },
+    "100": {
+      "path": "babylm_finetune/data/sft/pilots/n_scaling/train_n100.jsonl",
+      "count": 100,
+      "by_task_type": {
+        "combine": 14,
+        "constancy_row": 15,
+        "pattern": 14,
+        "progression": 14,
+        "pattern_tuple": 14,
+        "intersection": 14,
+        "constancy": 15
+      }
+    },
+    "250": {
+      "path": "babylm_finetune/data/sft/pilots/n_scaling/train_n250.jsonl",
+      "count": 250,
+      "by_task_type": {
+        "combine": 35,
+        "constancy_row": 36,
+        "constancy": 36,
+        "progression": 36,
+        "pattern_tuple": 36,
+        "pattern": 36,
+        "intersection": 35
+      }
+    },
+    "500": {
+      "path": "babylm_finetune/data/sft/pilots/n_scaling/train_n500.jsonl",
+      "count": 500,
+      "by_task_type": {
+        "pattern": 72,
+        "constancy": 72,
+        "progression": 71,
+        "combine": 71,
+        "intersection": 71,
+        "constancy_row": 72,
+        "pattern_tuple": 71
+      }
+    },
+    "1000": {
+      "path": "babylm_finetune/data/sft/pilots/n_scaling/train_n1000.jsonl",
+      "count": 1000,
+      "by_task_type": {
+        "combine": 143,
+        "pattern": 143,
+        "progression": 143,
+        "constancy": 143,
+        "constancy_row": 143,
+        "intersection": 142,
+        "pattern_tuple": 143
+      }
+    }
+  }
+}

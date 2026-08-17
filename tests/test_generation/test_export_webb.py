@@ -18,7 +18,7 @@ from ravens_numerical.generation.export_webb import (
     reduce_to_four_options,
     write_tasks_webb_json,
 )
-from ravens_numerical.paths import LEGACY_DATA_DIR, TASKS_JSON, TASKS_WEBB_JSON
+from ravens_numerical.paths import LEGACY_DATA_DIR, COMPLETE_JSON, TASKS_JSON, TASKS_WEBB_JSON
 from ravens_numerical.prompts.prompts import (
     IN_CONTEXT_EXAMPLES,
     build_completion_prompt,
@@ -122,7 +122,7 @@ def test_webb_instantiate_loads_icl_bank():
 def test_ravens_instantiate_does_not_load_webb_icl():
     cfg = Config(models=["m"], task_type="ravens", ravens_max_tasks=1)
     task = _instantiate_task("ravens_numerical", cfg)
-    assert task._tasks_path == TASKS_JSON
+    assert task._tasks_path == COMPLETE_JSON
     assert task._icl_examples is None
 
 

@@ -1,0 +1,17 @@
+model_name_or_path: BabyLM-community/babylm-baseline-100m-gpt2
+train_file: babylm_finetune/data/sft/train.jsonl
+val_file: babylm_finetune/data/sft/val.jsonl
+run_name: all_types
+learning_rate: 1.0e-4
+num_train_epochs: 5
+per_device_train_batch_size: 16
+per_device_eval_batch_size: 16
+gradient_accumulation_steps: 2
+max_seq_length: 512
+warmup_ratio: 0.06
+weight_decay: 0.01
+lr_scheduler_type: cosine
+seed: 42
+logging_steps: 10
+completion_only_loss: true
+test_policy: full_test_json_all_types

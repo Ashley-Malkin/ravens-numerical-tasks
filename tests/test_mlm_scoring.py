@@ -9,7 +9,12 @@ pytest.importorskip("torch")
 import torch
 import torch.nn as nn
 
-from ravens_numerical.scoring.mlm_scoring import encode_tail_truncated, mask_token_id, pseudo_log_likelihood
+from ravens_numerical.scoring.mlm_scoring import (
+    completion_token_span,
+    encode_tail_truncated,
+    mask_token_id,
+    pseudo_log_likelihood,
+)
 
 
 class _FakeTokenizer:
@@ -60,6 +65,29 @@ def test_mask_token_id_from_tokenizer_when_config_lacks_attr():
     assert mask_token_id(model, tok) == 3
 
 
+def test_completion_token_span_excludes_cls_and_sep():
+    # [CLS] + 20 prompt + c completion + [SEP]
+    prompt_toks = 20
+    for c in (1, 2, 3, 4):
+        seq_len = 1 + prompt_toks + c + 1
+        start, end = completion_token_span(seq_len, c)
+        assert start == 1 + prompt_toks
+        assert end == seq_len - 1
+        assert end - start == c
+
+
+def test_completion_token_span_old_formula_was_misaligned():
+    """Regression: ``seq_len - completion_len`` skipped first token and scored SEP."""
+    prompt_toks, c = 20, 2
+    seq_len = 1 + prompt_toks + c + 1
+    old_start = max(1, seq_len - c)
+    old_end = seq_len
+    start, end = completion_token_span(seq_len, c)
+    assert (old_start, old_end) != (start, end)
+    assert start == old_start - 1
+    assert end == old_end - 1
+
+
 def test_pseudo_log_likelihood_runs():
     model = _TinyMLM()
     tok = _FakeTokenizer()
@@ -86,6 +114,8 @@ def test_build_synthetic_choice_raw_parsable():
 if __name__ == "__main__":
     test_encode_tail_truncated_keeps_tail()
     test_mask_token_id_from_tokenizer_when_config_lacks_attr()
+    test_completion_token_span_excludes_cls_and_sep()
+    test_completion_token_span_old_formula_was_misaligned()
     test_pseudo_log_likelihood_runs()
     test_build_synthetic_choice_raw_parsable()
     print("OK")

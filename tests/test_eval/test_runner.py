@@ -167,8 +167,8 @@ def test_evaluate_forced_choice_uses_logprob_argmax():
     assert results[0].score.logprob_argmax_correct is True
 
 
-def test_evaluate_forced_choice_prefers_constrained_generation():
-    # Constrained gen says "0" but logprobs favor "1" → grade from generation
+def test_evaluate_forced_choice_uses_echo_over_mismatched_generation():
+    # Constrained gen says "0" but logprobs favor "1" → grade from echo argmax
     stimulus = Stimulus(
         query="AABB ", expected="1", answer_choices=["0", "1"]
     )
@@ -183,7 +183,7 @@ def test_evaluate_forced_choice_prefers_constrained_generation():
         stimuli=[stimulus],
         score_mode="forced_choice",
     )
-    assert results[0].score.correct is False
+    assert results[0].score.correct is True
     assert results[0].score.logprob_argmax_correct is True
 
 
@@ -240,7 +240,31 @@ def test_evaluate_forced_choice_does_not_hijack_long_cell_with_short_prefix():
     assert results[0].score.logprob_argmax_correct is True
 
 
-def test_evaluate_forced_choice_falls_back_when_prefix_hijack_would_apply():
+def test_evaluate_forced_choice_echo_beats_short_generation_match():
+    """Scalar gen match must not override a length-normalized pair logprob win."""
+    stimulus = Stimulus(
+        query="[",
+        expected="10 11",
+        answer_choices=["10", "7 10", "11 10", "10 11"],
+    )
+    backend = StubBackend(
+        text="10]",
+        logprobs_by_completion={
+            "10]": -0.10,
+            "7 10]": -3.0,
+            "11 10]": -3.0,
+            "10 11]": -0.12,
+        },
+    )
+    results = evaluate(
+        ClosingBracketTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.logprob_argmax_correct is True
+    assert results[0].score.correct is True
     """If span is multi-token gibberish starting with a short choice, use logprobs."""
     stimulus = Stimulus(
         query="[",
@@ -285,6 +309,55 @@ def test_evaluate_forced_choice_incorrect_when_logprobs_favor_wrong():
     )
     assert results[0].score.correct is False
     assert results[0].score.logprob_argmax_correct is False
+
+
+def test_evaluate_forced_choice_abstains_on_tied_echo_logprobs():
+    """All-equal echo scores (e.g. empty-sum artifact as 0.0) must not pick first key."""
+    stimulus = Stimulus(
+        query="[", expected="185", answer_choices=["183", "186", "185", "187"]
+    )
+    backend = StubBackend(
+        text="15151]",
+        logprobs_by_completion={
+            "183]": 0.0,
+            "186]": 0.0,
+            "185]": 0.0,
+            "187]": 0.0,
+        },
+    )
+    results = evaluate(
+        ClosingBracketTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.correct is False
+    assert results[0].score.logprob_argmax_correct is None
+
+
+def test_evaluate_forced_choice_tied_echo_still_uses_generation_match():
+    stimulus = Stimulus(
+        query="[", expected="185", answer_choices=["183", "186", "185", "187"]
+    )
+    backend = StubBackend(
+        text="185]",
+        logprobs_by_completion={
+            "183]": 0.0,
+            "186]": 0.0,
+            "185]": 0.0,
+            "187]": 0.0,
+        },
+    )
+    results = evaluate(
+        ClosingBracketTask(),
+        backend,
+        n_examples=0,
+        stimuli=[stimulus],
+        score_mode="forced_choice",
+    )
+    assert results[0].score.correct is True
+    assert results[0].score.logprob_argmax_correct is None
 
 
 def test_evaluate_forced_choice_stores_logprob_of_expected():

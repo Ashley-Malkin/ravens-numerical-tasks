@@ -8,13 +8,18 @@ import sys
 
 from ravens_numerical.generation.generator import (
     LETTERS,
+    TASK_TYPE_CYCLE,
     generate_constancy_row_task,
     generate_constancy_task,
     generate_combine_task,
+    generate_distribution_of_three_task,
     generate_intersection_task,
     generate_pattern_task,
     generate_pattern_tuple_task,
+    generate_progression_plus_n_task,
     generate_progression_task,
+    generate_tuple_grid_task,
+    PROGRESSION_STEPS,
     _expand_task_to_3x3,
 )
 
@@ -39,11 +44,14 @@ def main() -> None:
             "progression",
             "combine",
             "intersection",
+            "distribution_of_three",
+            "progression_plus_n",
+            "tuple_grid",
             "both",
             "all",
         ],
         default="both",
-        help="Task type: constancy, constancy_row, pattern, pattern_tuple, progression, combine, intersection, both, or all (default: both)",
+        help="Task type, both (constancy+pattern), or all (default: both)",
     )
     parser.add_argument(
         "--min",
@@ -94,21 +102,18 @@ def main() -> None:
         type_sequence = ["combine"] * args.count
     elif args.type == "intersection":
         type_sequence = ["intersection"] * args.count
+    elif args.type == "distribution_of_three":
+        type_sequence = ["distribution_of_three"] * args.count
+    elif args.type == "progression_plus_n":
+        type_sequence = ["progression_plus_n"] * args.count
+    elif args.type == "tuple_grid":
+        type_sequence = ["tuple_grid"] * args.count
     elif args.type == "both":
         for i in range(args.count):
             type_sequence.append("constancy" if i % 2 == 0 else "pattern")
     else:  # all
-        cycle = [
-            "constancy",
-            "constancy_row",
-            "pattern",
-            "pattern_tuple",
-            "progression",
-            "combine",
-            "intersection",
-        ]
         for i in range(args.count):
-            type_sequence.append(cycle[i % len(cycle)])
+            type_sequence.append(TASK_TYPE_CYCLE[i % len(TASK_TYPE_CYCLE)])
 
     for task_type in type_sequence:
         if task_type == "constancy":
@@ -138,6 +143,19 @@ def main() -> None:
         elif task_type == "intersection":
             task = generate_intersection_task(
                 digit_min=args.min, digit_max=args.max, rng=rng
+            )
+        elif task_type == "distribution_of_three":
+            task = generate_distribution_of_three_task(
+                min_val=args.min, max_val=args.max, rng=rng
+            )
+        elif task_type == "progression_plus_n":
+            step = PROGRESSION_STEPS[len(tasks) % len(PROGRESSION_STEPS)]
+            task = generate_progression_plus_n_task(
+                step=step, min_val=args.min, max_val=args.max, rng=rng
+            )
+        elif task_type == "tuple_grid":
+            task = generate_tuple_grid_task(
+                min_val=args.min, max_val=args.max, rng=rng
             )
         else:
             raise ValueError(f"unknown task type: {task_type!r}")

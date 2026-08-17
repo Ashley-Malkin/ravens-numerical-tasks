@@ -12,13 +12,108 @@
 
 | `--task-type` | Tasks | Data | Default `--n-examples` |
 |---------------|-------|------|------------------------|
-| `ravens` (default) | `ravens_numerical` | `data/tasks.json` (140) | `0 3` |
+| `ravens` (default) | `ravens_numerical` | `data/complete.json` (500) | `0 3` |
+| `ravens` + `--ravens-tasks-json tasks` | same | `data/tasks.json` (350, 7-type backup) | `0` |
+| `ravens` + `--ravens-tasks-json 5digit` | same | `data/tasks_5digit.json` (350) | `0` |
+| `ravens` + `--ravens-tasks-json challenge` | same | `data/challenge_tasks.json` (150) | `0` |
 | `webb` | `ravens_numerical` | `data/tasks_webb.json` (151) | `0 3` |
 | `aba` | `rules` (ABA/ABB, 70 eval) | `data/tasks_aba.json` | `0 5 10 15 20` |
 | `hierarchical` | `hierarchical` (70 eval) | `data/tasks_aba.json` | `0 5 10 15 20` |
 
 Explicit `--tasks ...` still overrides the suite when you need `matrix` / `matrix_easy`.
 For `--task-type aba` / `hierarchical`, only `--n-examples` values in `{0, 5, 10, 15, 20}` are allowed.
+
+### ICL test sets (`--n-examples`)
+
+`babylm_finetune/data/oneICL_test.json` and `threeICL_test.json` copy the same
+500 test tasks as `test.json` / `complete.json`, plus a per-type ICL bank (1 or 3 demos) that is
+matrix-disjoint from train / val / test and from `IN_CONTEXT_EXAMPLES`.
+Regenerate with:
+
+```bash
+python3 babylm_finetune/scripts/build_icl_test_sets.py
+python3 babylm_finetune/scripts/check_overlaps.py
+```
+
+On Modal (`--task-type ravens`), `--n-examples` selects the file and shot count:
+
+| `--n-examples` | Test JSON | Shots |
+|----------------|-----------|-------|
+| `0` | `data/complete.json` (zero-shot) | 0 |
+| `1` | `oneICL_test.json` | 1 |
+| `3` | `threeICL_test.json` | 3 |
+
+```bash
+modal run -m ravens_numerical.cloud.modal_eval \
+  --models <run_id> \
+  --n-examples 1 \
+  --score-mode forced_choice
+```
+
+Locally, point the CLI at the same JSON (ICL bank loads automatically):
+
+```bash
+PYTHONPATH=src python -m ravens_numerical.eval.cli \
+  --backend vllm --models <hf-id> --task-type ravens \
+  --ravens-tasks-json babylm_finetune/data/oneICL_test.json \
+  --n-examples 1 --score-mode forced_choice
+```
+
+### 5-digit OOD suite (`data/tasks_5digit.json`)
+
+Same 350 items as `tasks.json`, with every integer leaf remapped to
+`10000 + n` (all five-digit, structure and `correct_index` unchanged). Use this
+to test whether SFT on the original magnitude range generalizes to a longer
+digit surface form.
+
+Regenerate:
+
+```bash
+PYTHONPATH=src python -m ravens_numerical.generation.remap_5digit
+```
+
+Modal (alias or path; overrides `--n-examples` file selection):
+
+```bash
+modal run -m ravens_numerical.cloud.modal_eval \
+  --models miniberta-sft \
+  --n-examples 0 \
+  --score-mode forced_choice \
+  --ravens-tasks-json 5digit
+```
+
+Prefer `--n-examples 0` here: there is no 5-digit ICL test JSON yet, and the
+default prompt ICL bank still uses small numbers.
+
+### Challenge suite (`data/challenge_tasks.json`)
+
+150 harder Raven-style items (3 types × 50, round-robin interleaved):
+
+- `distribution_of_three` — cyclic ordering of three values; two distractors
+  are the other members of the triple
+- `progression_plus_n` — row-wise arithmetic progression with step in
+  `{2, 3, 5, 7, 10}` (10 items each, shuffled)
+- `tuple_grid` — cells are `(row_key, col_key)` pairs; options are
+  order-variant (swapped pair is a distractor)
+
+Regenerate:
+
+```bash
+PYTHONPATH=src python3 -m ravens_numerical.generation.challenge
+```
+
+Modal:
+
+```bash
+modal run -m ravens_numerical.cloud.modal_eval \
+  --models miniberta-sft \
+  --n-examples 0 \
+  --score-mode forced_choice \
+  --ravens-tasks-json challenge
+```
+
+Prefer `--n-examples 0`: there is no challenge ICL bank yet (unknown types fall
+back to constancy demos if ICL is requested).
 
 ### Webb suite
 
@@ -96,7 +191,7 @@ Results are written under `artifacts/runs/{model_tag}/{run_id}/ravens_numerical/
 
 | `--score-mode` | Behavior |
 |----------------|----------|
-| `forced_choice` (default) | Echo logprob argmax over formatted answer options (`correct`; generation match when parseable). Ravens / Webb use completion prompts. Hierarchical only: vLLM `structured_outputs.choice` during generation. |
+| `forced_choice` (default) | Unique length-normalized echo logprob argmax over formatted answer options (`correct`). Degenerate near-ties abstain; generation match is used only then. Ravens / Webb use completion prompts. Hierarchical only: vLLM `structured_outputs.choice` during generation. |
 | `free_gen` | Parse free generation (first token / string match) |
 | `auto` | `forced_choice` for Pythia `@stepN` checkpoints; `free_gen` otherwise |
 

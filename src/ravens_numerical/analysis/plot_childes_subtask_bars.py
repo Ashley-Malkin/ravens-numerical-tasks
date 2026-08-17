@@ -16,7 +16,16 @@ import argparse
 import re
 from pathlib import Path
 
+from ravens_numerical.analysis.dump_scores import (
+    dump_regular_scores,
+    overlay_regular_section,
+)
 from ravens_numerical.analysis.experiment_log import TASK_TYPE_ORDER
+from ravens_numerical.analysis.plot_corpus_base_vs_sft import (
+    is_complete_eval_tasks,
+    load_sft_by_category,
+    sft_eval_text,
+)
 from ravens_numerical.models.registry import parse_training_corpus_millions
 from ravens_numerical.paths import (
     CHILDES_EXPERIMENTS_MD,
@@ -65,13 +74,29 @@ def load_by_budget(path: Path, section_re: re.Pattern[str]) -> dict[int, dict[st
         raise SystemExit(f"missing log: {path}")
     text = path.read_text(encoding="utf-8")
     out: dict[int, dict[str, float]] = {}
+    dump_fill: dict[int, dict[str, float]] = {}
     for match in section_re.finditer(text):
         model_id = match.group(1).strip()
         budget = _budget_m(model_id)
         by_task = _parse_by_task(match.group(3))
         if budget is None or not by_task:
             continue
-        out[budget] = by_task
+        if is_complete_eval_tasks(by_task):
+            out[budget] = by_task
+            continue
+        scored = overlay_regular_section(
+            text, match.start(), model_id, None, by_task
+        )
+        if scored is not None:
+            _overall, tasks = scored
+            if tasks:
+                out[budget] = tasks
+            continue
+        dump = dump_regular_scores(model_id)
+        if dump is not None and dump[1]:
+            dump_fill.setdefault(budget, dump[1])
+    for budget, tasks in dump_fill.items():
+        out.setdefault(budget, tasks)
     return out
 
 
@@ -196,7 +221,11 @@ def main() -> None:
     output = args.output or (PLOTS_DIR / "childes_subtask_bars.png")
 
     base = load_by_budget(args.base_log.resolve(), _BASE_SECTION_RE)
-    finetuned = load_by_budget(sft_log.resolve(), _SFT_SECTION_RE)
+    if args.sft_log is not None:
+        finetuned = load_by_budget(sft_log.resolve(), _SFT_SECTION_RE)
+    else:
+        sft_text = sft_eval_text(CHILDES_SFT_ALL_EVALS_MD, ("childes-",))
+        finetuned = load_sft_by_category(sft_text, "words")
     print(f"Base budgets: {sorted(base)}")
     print(f"SFT budgets: {sorted(finetuned)}")
 

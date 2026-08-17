@@ -198,6 +198,69 @@ IN_CONTEXT_EXAMPLES: dict[str, list[IclExample]] = {
             "correct_letter": "C",
         },
     ],
+    "distribution_of_three": [
+        {
+            "matrix": [[6, 2, 4], [2, 4, 6], [4, 6, None]],
+            "answer_options": [4, 6, 2, 7],
+            "correct_letter": "C",
+        },
+        {
+            "matrix": [[1, 8, 3], [8, 3, 1], [3, 1, None]],
+            "answer_options": [9, 3, 1, 8],
+            "correct_letter": "D",
+        },
+        {
+            "matrix": [[11, 14, 17], [14, 17, 11], [17, 11, None]],
+            "answer_options": [14, 12, 17, 11],
+            "correct_letter": "A",
+        },
+    ],
+    "progression_plus_n": [
+        {
+            "matrix": [[3, 5, 7], [2, 4, 6], [9, 11, None]],
+            "answer_options": [13, 6, 10, 11],
+            "correct_letter": "A",
+        },
+        {
+            "matrix": [[1, 4, 7], [2, 5, 8], [10, 13, None]],
+            "answer_options": [8, 16, 15, 14],
+            "correct_letter": "B",
+        },
+        {
+            "matrix": [[4, 9, 14], [1, 6, 11], [3, 8, None]],
+            "answer_options": [12, 11, 13, 8],
+            "correct_letter": "C",
+        },
+    ],
+    "tuple_grid": [
+        {
+            "matrix": [
+                [[1, 3], [1, 5], [1, 2]],
+                [[4, 3], [4, 5], [4, 2]],
+                [[8, 3], [8, 5], None],
+            ],
+            "answer_options": [8, [8, 2], [4, 8], [2, 8]],
+            "correct_letter": "B",
+        },
+        {
+            "matrix": [
+                [[2, 6], [2, 9], [2, 4]],
+                [[7, 6], [7, 9], [7, 4]],
+                [[3, 6], [3, 9], None],
+            ],
+            "answer_options": [[3, 4], [4, 3], [7, 3], 3],
+            "correct_letter": "A",
+        },
+        {
+            "matrix": [
+                [[5, 1], [5, 8], [5, 10]],
+                [[9, 1], [9, 8], [9, 10]],
+                [[12, 1], [12, 8], None],
+            ],
+            "answer_options": [[10, 12], 12, [12, 10], [9, 12]],
+            "correct_letter": "C",
+        },
+    ],
 }
 
 

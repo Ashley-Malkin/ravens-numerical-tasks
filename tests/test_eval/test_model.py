@@ -80,10 +80,10 @@ def test_score_completion_returns_none_when_text_offset_absent(backend):
 
 
 @resp.activate
-def test_score_completion_excludes_prompt_logprobs(backend):
-    """Only completion tokens (text_offset >= len(prompt)) are summed."""
-    # prompt = "hello " (6 chars), completion = "world" (5 chars)
-    # Token offsets: 0, 3, 6, 9 → first two are prompt, last two are completion
+def test_score_completion_excludes_prompt_only_tokens(backend):
+    """Tokens wholly in the prompt are excluded; completion offsets are summed."""
+    # prompt = "hello " (6 chars), completion = "world" (5 chars), full_len=11
+    # Token offsets: 0, 3, 6, 9 → first two are prompt, last two overlap completion
     resp.add(
         resp.POST,
         VLLM_URL,
@@ -153,6 +153,44 @@ def test_score_completion_returns_zero_for_zero_logprobs(backend):
     )
     result = backend.score_completion("prompt", "ro")
     assert result == pytest.approx(0.0)
+
+
+@resp.activate
+def test_score_completion_includes_straddling_token(backend):
+    """BPE merge starting before prompt_len but overlapping completion still counts."""
+    # prompt = "x[" (2 chars), completion = "185]" (4 chars), full = "x[185]" (6)
+    # Token at offset 1 spans [1, 6) covering '[' + digits — starts in prompt.
+    resp.add(
+        resp.POST,
+        VLLM_URL,
+        json=_completions_response(
+            logprobs={
+                "token_logprobs": [None, -1.5],
+                "text_offset": [0, 1],
+            }
+        ),
+        status=200,
+    )
+    result = backend.score_completion("x[", "185]")
+    assert result == pytest.approx(-1.5)
+
+
+@resp.activate
+def test_score_completion_returns_none_when_no_completion_tokens(backend):
+    """No finite logprob overlapping the completion span → None, not 0.0."""
+    resp.add(
+        resp.POST,
+        VLLM_URL,
+        json=_completions_response(
+            logprobs={
+                "token_logprobs": [None, -1.0, None],
+                "text_offset": [0, 3, 6],
+            }
+        ),
+        status=200,
+    )
+    result = backend.score_completion("prompt", "ro")
+    assert result is None
 
 
 @resp.activate

@@ -1,0 +1,22 @@
+{
+  "run_name": "holdout_progression",
+  "include_types": [
+    "constancy",
+    "constancy_row",
+    "pattern",
+    "pattern_tuple",
+    "combine",
+    "intersection"
+  ],
+  "holdout_types": [
+    "progression"
+  ],
+  "source_train": "/Users/amalkin/Library/CloudStorage/OneDrive-Personal/code/ravens-numerical-tasks/babylm_finetune/data/sft/train.jsonl",
+  "source_val": "/Users/amalkin/Library/CloudStorage/OneDrive-Personal/code/ravens-numerical-tasks/babylm_finetune/data/sft/val.jsonl",
+  "train_file": "/Users/amalkin/Library/CloudStorage/OneDrive-Personal/code/ravens-numerical-tasks/babylm_finetune/data/sft/runs/holdout_progression/train.jsonl",
+  "val_file": "/Users/amalkin/Library/CloudStorage/OneDrive-Personal/code/ravens-numerical-tasks/babylm_finetune/data/sft/runs/holdout_progression/val.jsonl",
+  "train_count": 1080,
+  "val_count": 120,
+  "test_policy": "full_test_json_all_types",
+  "note": "Test remains the fixed full tasks.json; this never filters test."
+}

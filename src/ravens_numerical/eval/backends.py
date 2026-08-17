@@ -14,6 +14,7 @@ from ravens_numerical.scoring.choice_logprobs import (
     letter_logprobs_single_entry,
     vllm_logprobs_to_ollama_list,
 )
+from ravens_numerical.scoring.echo_logprobs import unique_logprob_argmax
 from ravens_numerical.scoring.mlm_scoring import score_completion_span, score_sequence
 
 CHOICE_ONLY_MAX_TOKENS = 256
@@ -149,12 +150,20 @@ class VLLMBackend(ModelBackend):
         )
 
     def score_completion(self, prompt: str, completion: str) -> float | None:
-        """Return sum of token log probs for the completion only, or None if unsupported."""
+        """Return sum of token log probs for the completion only, or None if unsupported.
+
+        Tokens overlapping the completion character span are included (so BPE
+        merges that straddle ``prompt`` / ``completion`` still count). An empty
+        match returns ``None``, not ``0.0``.
+        """
+        from ravens_numerical.scoring.echo_logprobs import sum_echo_completion_logprobs
+
+        full = prompt + completion
         data = self._post(
             "/v1/completions",
             {
                 "model": self.model,
-                "prompt": prompt + completion,
+                "prompt": full,
                 "max_tokens": 0,
                 "echo": True,
                 "logprobs": 1,
@@ -170,10 +179,11 @@ class VLLMBackend(ModelBackend):
         text_offset = logprobs_data.get("text_offset")
         if text_offset is None:
             return None
-        prompt_len = len(prompt)
-        return sum(
-            lp for lp, off in zip(token_logprobs, text_offset)
-            if off >= prompt_len and lp is not None
+        return sum_echo_completion_logprobs(
+            list(token_logprobs),
+            list(text_offset),
+            len(prompt),
+            full_len=len(full),
         )
 
 
@@ -541,7 +551,9 @@ class RobertaMLMBackend(ModelBackend):
                 for c in choices
             }
             valid = {c: s for c, s in scored.items() if s is not None}
-            best = max(valid, key=valid.get) if valid else choices[0]
+            best = unique_logprob_argmax(valid) if valid else None
+            if best is None:
+                best = choices[0]
             return ModelResponse(text=best.split("]")[0].strip(), token_logprobs=None)
 
         if self._prompt_type == "instruction" and self._prompt_mode == "choice_only":

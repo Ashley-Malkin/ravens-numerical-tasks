@@ -26,13 +26,14 @@ from ravens_numerical.eval.tasks.legacy.rules import RulesTask
 from ravens_numerical.models.registry import (
     base_model_id,
     is_miniberta_model,
+    is_miniberta_sft_checkpoint,
     is_olmo2_instruct_model,
     is_olmo2_model,
     is_pythia_checkpoint_model_id,
     is_qwen3_instruct_model,
     resolve_instruction_prompt_mode,
 )
-from ravens_numerical.paths import REPO_ROOT, RUNS_DIR, TASKS_ABA_JSON, TASKS_JSON, TASKS_WEBB_JSON
+from ravens_numerical.paths import REPO_ROOT, RUNS_DIR, COMPLETE_JSON, TASKS_ABA_JSON, TASKS_WEBB_JSON
 
 TASK_MAP = {
     "rules": RulesTask,
@@ -169,7 +170,7 @@ class Config:
     """Use systematic stimulus generation (balanced across rule/pattern types)."""
 
     ravens_tasks_json: Path | None = None
-    """Path to tasks JSON for ``ravens_numerical``. Defaults to ``data/tasks.json`` (``ravens``) or ``data/tasks_webb.json`` (``webb``)."""
+    """Path to tasks JSON for ``ravens_numerical``. Defaults to ``data/tasks.json`` (``ravens``) or ``data/tasks_webb.json`` (``webb``). Use ``data/tasks_5digit.json`` for the 5-digit OOD suite."""
 
     aba_tasks_json: Path | None = None
     """Path to ``tasks_aba.json`` for aba / hierarchical. Defaults to ``data/tasks_aba.json``."""
@@ -192,8 +193,10 @@ class Config:
     score_mode: ScoreMode = "forced_choice"
     """How ``correct`` is decided for tasks with ``answer_choices``.
 
-    ``forced_choice`` (default): argmax of completion logprobs among choices
-    (hierarchical also constrains generation via vLLM structured choice).
+    ``forced_choice`` (default): unique length-normalized echo logprob argmax
+    among choices (degenerate near-ties abstain; generation match is fallback
+    only then). Hierarchical also constrains generation via vLLM structured
+    choice.
     ``free_gen``: parse free generation. ``auto`` → ``forced_choice`` for Pythia
     ``@stepN`` checkpoints, else ``free_gen``. Raven's instruction ``choice_only``
     is unchanged when using ``--ravens-prompt-type instruction --score-mode free_gen``.
@@ -211,7 +214,7 @@ def _aba_tasks_json(cfg: Config) -> Path:
 def _default_ravens_tasks_json(cfg: Config) -> Path:
     if cfg.task_type == "webb":
         return TASKS_WEBB_JSON
-    return TASKS_JSON
+    return COMPLETE_JSON
 
 
 def _instantiate_task(
@@ -231,7 +234,9 @@ def _instantiate_task(
             max_tasks=cfg.ravens_max_tasks,
             prompt_type=prompt_type,
             prompt_mode=prompt_mode,  # type: ignore[arg-type]
-            load_icl_from_json=cfg.task_type == "webb",
+            # Load top-level ``icl`` when present (Webb / shared-bank files).
+            # Per-task ``icl`` on each item is preferred in ``build_prompt``.
+            load_icl_from_json=True,
         )
     if task_name == "rules":
         return RulesTask(tasks_json=_aba_tasks_json(cfg))
@@ -256,7 +261,11 @@ def _make_backend(
             max_tokens=cfg.ollama_max_tokens,
         )
 
-    if cfg.backend == "hf" or is_miniberta_model(hf_model):
+    if (
+        cfg.backend == "hf"
+        or is_miniberta_model(hf_model)
+        or is_miniberta_sft_checkpoint(model_name)
+    ):
         # Raven's instruction modes use letter/JSON PLL; baby suites and other
         # answer-choice tasks use completion-span PLL over the options.
         if getattr(task, "uses_choice_only_metrics", False):
@@ -272,8 +281,11 @@ def _make_backend(
         else:
             prompt_type = "completion"
             prompt_mode = "plain"
+        mlm_path = (
+            model_name if is_miniberta_sft_checkpoint(model_name) else hf_model
+        )
         return RobertaMLMBackend(
-            hf_model,
+            mlm_path,
             device=cfg.hf_device,
             prompt_type=prompt_type,
             prompt_mode=prompt_mode,

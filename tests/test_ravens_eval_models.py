@@ -31,6 +31,8 @@ from ravens_numerical.models.registry import (
     is_pythia_checkpoint_model_id,
     is_qwen3_base_model,
     is_qwen3_instruct_model,
+    is_sft_checkpoint_model,
+    is_sft_run_id,
     max_model_len_for_model,
     model_family,
     olmo2_checkpoint_model_ids,
@@ -41,7 +43,14 @@ from ravens_numerical.models.registry import (
     parse_training_corpus_millions,
     pythia_checkpoint_model_ids,
     resolve_models_arg,
+    resolve_sft_model_id,
+    sft_run_id_from_model_id,
     uses_completions_choice_only,
+)
+from ravens_numerical.paths import (
+    BABYLM_EXPERIMENTS_MD,
+    BABYLM_FINETUNE_LOGS_DIR,
+    babylm_sft_experiments_md,
 )
 
 BABYLM_10M = "BabyLM-community/babylm-baseline-10m-gpt2"
@@ -233,6 +242,47 @@ def test_parse_olmo2_checkpoint_model_id():
     ) == "A100"
 
 
+SFT_RUN_ID = "babylm-10m-gpt2__all_types__20260723T212815Z"
+SFT_CHECKPOINT_PATH = f"/checkpoints/{SFT_RUN_ID}"
+
+
+def test_sft_run_id_detection_and_resolve():
+    assert is_sft_run_id(SFT_RUN_ID) is True
+    assert is_sft_run_id(BABYLM_10M) is False
+    assert is_sft_run_id("olmoo") is False
+    assert is_sft_checkpoint_model(SFT_RUN_ID) is True
+    assert is_sft_checkpoint_model(SFT_CHECKPOINT_PATH) is True
+    assert is_sft_checkpoint_model(BABYLM_10M) is False
+    assert resolve_sft_model_id(SFT_RUN_ID) == SFT_CHECKPOINT_PATH
+    assert resolve_sft_model_id(SFT_CHECKPOINT_PATH) == SFT_CHECKPOINT_PATH
+    assert sft_run_id_from_model_id(SFT_RUN_ID) == SFT_RUN_ID
+    assert sft_run_id_from_model_id(SFT_CHECKPOINT_PATH) == SFT_RUN_ID
+
+
+def test_resolve_models_arg_sft_run_id():
+    assert resolve_models_arg(SFT_RUN_ID) == [SFT_CHECKPOINT_PATH]
+    assert resolve_models_arg(SFT_CHECKPOINT_PATH) == [SFT_CHECKPOINT_PATH]
+    assert gpu_tier_for_model(SFT_RUN_ID) == "T4"
+    assert gpu_tier_for_model(SFT_CHECKPOINT_PATH) == "T4"
+
+
+def test_babylm_sft_experiments_log_path():
+    sft_log = babylm_sft_experiments_md(SFT_RUN_ID)
+    assert sft_log == BABYLM_FINETUNE_LOGS_DIR / f"{SFT_RUN_ID}.md"
+    assert babylm_sft_experiments_md(SFT_CHECKPOINT_PATH) == sft_log
+    assert (
+        babylm_sft_experiments_md(SFT_RUN_ID, n_examples=0)
+        == BABYLM_FINETUNE_LOGS_DIR / f"{SFT_RUN_ID}__n0.md"
+    )
+    assert (
+        babylm_sft_experiments_md(SFT_RUN_ID, n_examples=3)
+        == BABYLM_FINETUNE_LOGS_DIR / f"{SFT_RUN_ID}__n3.md"
+    )
+    # Hub BabyLM baselines keep the shared artifacts log, not per-run SFT logs.
+    assert BABYLM_EXPERIMENTS_MD.name == "babyLMexperiments.md"
+    assert BABYLM_EXPERIMENTS_MD != sft_log
+
+
 if __name__ == "__main__":
     test_babylm_model_family()
     test_miniberta_model_family()
@@ -254,4 +304,7 @@ if __name__ == "__main__":
     test_resolve_models_arg_rejects_bare_unknown()
     test_olmo2_checkpoint_model_ids()
     test_parse_olmo2_checkpoint_model_id()
+    test_sft_run_id_detection_and_resolve()
+    test_resolve_models_arg_sft_run_id()
+    test_babylm_sft_experiments_log_path()
     print("OK")

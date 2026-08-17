@@ -21,7 +21,9 @@ If you don't have 3.11: `brew install python@3.11`
 ## Layout
 
 ```
-data/tasks.json          # canonical 140-task Raven benchmark
+data/complete.json       # default 500-task eval (10 types × 50)
+data/tasks.json          # 7-type 350-task backup (50/type)
+data/challenge_tasks.json # 3 harder types × 50 (also folded into complete.json)
 data/tasks_aba.json      # ABA/ABB + hierarchical equality suite
 data/tasks_webb.json     # 151-task Webb et al. 2023 digit-matrix suite
 src/ravens_numerical/    # installable package
@@ -36,7 +38,7 @@ tests/                   # unified pytest suite
 | Command | Purpose |
 |---------|---------|
 | `ravens-generate` | Generate tasks JSON |
-| `ravens-validate` | Validate `data/tasks.json` |
+| `ravens-validate` | Validate `data/complete.json` |
 | `ravens-eval` | Quick Ollama eval (Qwen3) |
 | `ravens-run` | Full harness (vLLM / Ollama / HF) |
 | `ravens-modal` | Modal GPU scaling (`modal run -m ravens_numerical.cloud.modal_eval`) |
@@ -229,8 +231,8 @@ ravens-generate --count 50 --type both --min 1 --max 20 --output data/tasks.json
 Quick local Ollama eval:
 
 ```bash
-ravens-eval --tasks data/tasks.json --model qwen3:30b
-ravens-eval --tasks data/tasks.json --model qwen3:30b --choice-only
+ravens-eval --tasks data/complete.json --model qwen3:30b
+ravens-eval --tasks data/complete.json --model qwen3:30b --choice-only
 ```
 
 Full harness and Modal scaling: [docs/eval.md](docs/eval.md).

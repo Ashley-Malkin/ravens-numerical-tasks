@@ -475,10 +475,187 @@ def generate_intersection_task(
     }
 
 
+def generate_distribution_of_three_task(
+    min_val: int = 1,
+    max_val: int = 20,
+    rng: Optional[random.Random] = None,
+) -> dict:
+    """Cyclic ordering of three distinct numbers.
+
+    Example::
+
+        [[6, 2, 4],
+         [2, 4, 6],
+         [4, 6, ?]]   → 2
+
+    Two distractors are the other members of the triple; one is an outsider.
+    """
+    rng = rng or random.Random()
+    a, b, c = rng.sample(range(min_val, max_val + 1), 3)
+    row0 = [a, b, c]
+    row1 = [b, c, a]
+    row2 = [c, a, b]
+    correct = row2[2]
+    others = [x for x in (a, b, c) if x != correct]
+    outsider_pool = [
+        v for v in range(min_val, max_val + 1) if v not in (a, b, c)
+    ]
+    if not outsider_pool:
+        outsider = max_val + 1
+    else:
+        outsider = rng.choice(outsider_pool)
+    options = [correct, others[0], others[1], outsider]
+    rng.shuffle(options)
+    return {
+        "task_type": "distribution_of_three",
+        "matrix": [row0, row1, [row2[0], row2[1], None]],
+        "answer_options": options,
+        "correct_index": options.index(correct),
+    }
+
+
+def generate_progression_plus_n_task(
+    step: int,
+    min_val: int = 1,
+    max_val: int = 50,
+    rng: Optional[random.Random] = None,
+) -> dict:
+    """Row-wise arithmetic progression with common difference ``step``.
+
+    Example (``step=2``)::
+
+        [[3, 5, 7],
+         [2, 4, 6],
+         [9, 11, ?]]  → 13
+    """
+    rng = rng or random.Random()
+    if step <= 0:
+        raise ValueError(f"step must be positive, got {step}")
+    start_hi = max_val - 2 * step
+    if start_hi < min_val:
+        raise ValueError(
+            f"range [{min_val}, {max_val}] too small for step={step}"
+        )
+
+    starts = [rng.randint(min_val, start_hi) for _ in range(3)]
+    matrix = [[s, s + step, s + 2 * step] for s in starts]
+    correct = matrix[2][2]
+    matrix[2][2] = None
+
+    visible = [
+        matrix[0][0],
+        matrix[0][1],
+        matrix[0][2],
+        matrix[1][0],
+        matrix[1][1],
+        matrix[1][2],
+        matrix[2][0],
+        matrix[2][1],
+    ]
+    exclude = frozenset(visible) | {correct}
+    distractors = generate_distractors(
+        correct, min_val, max_val, exclude=exclude, rng=rng
+    )
+    preferred: list[int] = []
+    for cand in (
+        matrix[2][1],
+        matrix[1][2],
+        correct - 1 if correct - 1 >= min_val else correct + 1,
+        correct + step,
+        starts[2] + 1,
+    ):
+        if (
+            min_val <= cand <= max_val
+            and cand != correct
+            and cand not in preferred
+        ):
+            preferred.append(cand)
+        if len(preferred) >= 3:
+            break
+    for d in distractors:
+        if len(preferred) >= 3:
+            break
+        if d != correct and d not in preferred:
+            preferred.append(d)
+    options = [correct] + preferred[:3]
+    rng.shuffle(options)
+    return {
+        "task_type": "progression_plus_n",
+        "step": step,
+        "matrix": matrix,
+        "answer_options": options,
+        "correct_index": options.index(correct),
+    }
+
+
+def generate_tuple_grid_task(
+    min_val: int = 1,
+    max_val: int = 12,
+    rng: Optional[random.Random] = None,
+) -> dict:
+    """Row-constant first coord, column-constant second; order-variant options.
+
+    Example::
+
+        [[(1,3), (1,5), (1,2)],
+         [(4,3), (4,5), (4,2)],
+         [(8,3), (8,5), ?]]  → (8, 2)
+    """
+    rng = rng or random.Random()
+    keys = rng.sample(range(min_val, max_val + 1), 6)
+    row_keys = keys[:3]
+    col_keys = keys[3:]
+    matrix = [
+        [[row_keys[i], col_keys[j]] for j in range(3)] for i in range(3)
+    ]
+    correct = [row_keys[2], col_keys[2]]
+    matrix[2][2] = None
+
+    scalar = row_keys[2]
+    swapped = [col_keys[2], row_keys[2]]
+    mixed = [row_keys[1], row_keys[2]]
+    if mixed == correct or mixed == swapped:
+        mixed = [col_keys[0], row_keys[2]]
+    if mixed == correct or mixed == swapped:
+        mixed = [row_keys[0], col_keys[1]]
+
+    options: list = [scalar, correct, mixed, swapped]
+
+    def _opt_key(o) -> tuple:
+        if isinstance(o, list):
+            return ("list", tuple(o))
+        return ("int", o)
+
+    if len({_opt_key(o) for o in options}) < 4:
+        alt = [row_keys[0], col_keys[0]]
+        if _opt_key(alt) in {_opt_key(correct), _opt_key(swapped)}:
+            alt = [row_keys[1], col_keys[1]]
+        options = [scalar, correct, alt, swapped]
+
+    rng.shuffle(options)
+    correct_index = next(
+        i for i, o in enumerate(options) if _opt_key(o) == _opt_key(correct)
+    )
+    return {
+        "task_type": "tuple_grid",
+        "matrix": matrix,
+        "answer_options": options,
+        "correct_index": correct_index,
+        "perm_invariant": False,
+    }
+
+
 LETTERS = "ABCD"
 
-# Round-robin order for ``tasks.json`` and ``generate.py --type all``.
-TASK_TYPE_CYCLE: tuple[str, ...] = (
+PROGRESSION_STEPS = (2, 3, 5, 7, 10)
+CHALLENGE_TYPE_CYCLE: tuple[str, ...] = (
+    "distribution_of_three",
+    "progression_plus_n",
+    "tuple_grid",
+)
+
+# Original 7-type round-robin used by ``data/tasks.json``.
+LEGACY_TASK_TYPE_CYCLE: tuple[str, ...] = (
     "constancy",
     "constancy_row",
     "pattern",
@@ -487,6 +664,9 @@ TASK_TYPE_CYCLE: tuple[str, ...] = (
     "combine",
     "intersection",
 )
+
+# Round-robin order for ``complete.json`` and ``generate.py --type all``.
+TASK_TYPE_CYCLE: tuple[str, ...] = LEGACY_TASK_TYPE_CYCLE + CHALLENGE_TYPE_CYCLE
 
 # Alias for ICL example generation (same order as ``TASK_TYPE_CYCLE``).
 _ICL_TASK_TYPES = TASK_TYPE_CYCLE
@@ -528,7 +708,14 @@ def _expand_task_to_3x3(task: dict) -> dict:
     elif tt == "pattern_tuple":
         a, b = matrix[0][0], matrix[0][1]
         expanded = [[a, b, b], [b, a, b], [b, b, None]]
-    elif tt in ("combine", "intersection", "constancy_row"):
+    elif tt in (
+        "combine",
+        "intersection",
+        "constancy_row",
+        "distribution_of_three",
+        "progression_plus_n",
+        "tuple_grid",
+    ):
         expanded = matrix
     else:
         raise ValueError(f"cannot expand task type: {tt!r}")
@@ -536,21 +723,46 @@ def _expand_task_to_3x3(task: dict) -> dict:
     return {**task, "matrix": expanded}
 
 
-def _generate_icl_candidate(task_type: str, rng: random.Random) -> dict:
-    """Generate one 3×3 demonstration task of ``task_type``."""
+def _generate_icl_candidate(
+    task_type: str,
+    rng: random.Random,
+    *,
+    min_val: int = 1,
+    max_val: int = 20,
+    digit_min: int = 0,
+    digit_max: int = 9,
+) -> dict:
+    """Generate one 3×3 demonstration task of ``task_type``.
+
+    ``min_val`` / ``max_val`` apply to magnitude types (constancy, constancy_row,
+    pattern, progression). ``digit_min`` / ``digit_max`` apply to digit/tuple
+    types (combine, intersection, pattern_tuple).
+    """
     if task_type == "constancy":
-        task = generate_constancy_task(rng=rng)
+        task = generate_constancy_task(min_val=min_val, max_val=max_val, rng=rng)
     elif task_type == "constancy_row":
-        return generate_constancy_row_task(rng=rng)
+        return generate_constancy_row_task(
+            min_val=min_val, max_val=max_val, rng=rng
+        )
     elif task_type == "pattern":
-        task = generate_pattern_task(rng=rng)
+        task = generate_pattern_task(min_val=min_val, max_val=max_val, rng=rng)
     elif task_type == "pattern_tuple":
-        task = generate_pattern_tuple_task(rng=rng)
+        task = generate_pattern_tuple_task(
+            digit_min=digit_min, digit_max=digit_max, rng=rng
+        )
     elif task_type == "progression":
-        b = rng.randint(1, 18)
-        a = rng.randint(1, 18)
+        # Need room for A+2 and B+2 within range.
+        hi = max_val - 2
+        lo = min_val
+        if hi < lo:
+            raise ValueError(
+                f"progression ICL needs max_val-2 >= min_val "
+                f"(got min={min_val}, max={max_val})"
+            )
+        b = rng.randint(lo, hi)
+        a = rng.randint(lo, hi)
         correct = b + 2
-        distractors = generate_distractors(correct, 1, 20, rng=rng)
+        distractors = generate_distractors(correct, min_val, max_val, rng=rng)
         options = [correct] + distractors
         rng.shuffle(options)
         return {
@@ -560,9 +772,27 @@ def _generate_icl_candidate(task_type: str, rng: random.Random) -> dict:
             "correct_index": options.index(correct),
         }
     elif task_type == "combine":
-        return generate_combine_task(rng=rng)
+        # combine uses digit_min>=1 by default
+        return generate_combine_task(
+            digit_min=max(1, digit_min), digit_max=digit_max, rng=rng
+        )
     elif task_type == "intersection":
-        return generate_intersection_task(rng=rng)
+        return generate_intersection_task(
+            digit_min=max(1, digit_min), digit_max=digit_max, rng=rng
+        )
+    elif task_type == "distribution_of_three":
+        return generate_distribution_of_three_task(
+            min_val=min_val, max_val=max_val, rng=rng
+        )
+    elif task_type == "progression_plus_n":
+        step = rng.choice(PROGRESSION_STEPS)
+        return generate_progression_plus_n_task(
+            step=step, min_val=min_val, max_val=max_val, rng=rng
+        )
+    elif task_type == "tuple_grid":
+        return generate_tuple_grid_task(
+            min_val=min_val, max_val=max_val, rng=rng
+        )
     else:
         raise ValueError(f"unknown task type: {task_type!r}")
 
@@ -597,18 +827,36 @@ def generate_in_context_examples(
     n_per_type: int = 3,
     seed: int = 20260619,
     max_attempts: int = 5000,
+    min_val: int = 1,
+    max_val: int = 20,
+    digit_min: int = 0,
+    digit_max: int = 9,
 ) -> dict[str, list[dict]]:
-    """Generate ICL demos that follow task patterns but are not in ``exclude``."""
+    """Generate ICL demos that follow task patterns but are not in ``exclude``.
+
+    ``min_val`` / ``max_val`` widen the pool for magnitude types when many
+    unique demos are needed (e.g. per-task ICL). ``digit_min`` / ``digit_max``
+    do the same for digit/tuple types.
+    """
     rng = random.Random(seed)
     out: dict[str, list[dict]] = {tt: [] for tt in _ICL_TASK_TYPES}
     seen = set(exclude)
     seen_matrices = set(exclude_matrices or ())
+    # Scale attempts with demand; digit types may need many retries.
+    attempts_cap = max(max_attempts, n_per_type * 200)
 
     for task_type in _ICL_TASK_TYPES:
         attempts = 0
-        while len(out[task_type]) < n_per_type and attempts < max_attempts:
+        while len(out[task_type]) < n_per_type and attempts < attempts_cap:
             attempts += 1
-            task = _generate_icl_candidate(task_type, rng)
+            task = _generate_icl_candidate(
+                task_type,
+                rng,
+                min_val=min_val,
+                max_val=max_val,
+                digit_min=digit_min,
+                digit_max=digit_max,
+            )
             fp = task_fingerprint(task)
             mf = matrix_fingerprint(task)
             if fp in seen or mf in seen_matrices:
@@ -620,6 +868,8 @@ def generate_in_context_examples(
                     "matrix": task["matrix"],
                     "answer_options": task["answer_options"],
                     "correct_letter": LETTERS[task["correct_index"]],
+                    "correct_index": task["correct_index"],
+                    "task_type": task_type,
                 }
             )
         if len(out[task_type]) < n_per_type:

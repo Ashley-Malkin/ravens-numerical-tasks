@@ -30,7 +30,7 @@ from ravens_numerical.prompts.prompts import (
 )
 
 from ravens_numerical.models.registry import QWEN3_OLLAMA_MODELS
-from ravens_numerical.paths import TASKS_JSON
+from ravens_numerical.paths import COMPLETE_JSON
 
 DEBUG_MODELS = list(QWEN3_OLLAMA_MODELS)
 
@@ -391,8 +391,8 @@ def main() -> None:
     parser.add_argument(
         "--tasks",
         type=str,
-        default=str(TASKS_JSON),
-        help="Path to tasks JSON (default: data/tasks.json)",
+        default=str(COMPLETE_JSON),
+        help="Path to tasks JSON (default: data/complete.json)",
     )
     parser.add_argument(
         "--model",

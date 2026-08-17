@@ -14,6 +14,18 @@ import argparse
 import re
 from pathlib import Path
 
+from ravens_numerical.analysis.dump_scores import (
+    dump_regular_scores,
+    overlay_regular_section,
+)
+from ravens_numerical.analysis.plot_corpus_base_vs_sft import (
+    _BASE_SECTION_RE,
+    easy_overall,
+    is_complete_eval_tasks,
+    is_complete_sft_run,
+    iter_sft_sections,
+    sft_eval_text,
+)
 from ravens_numerical.models.registry import parse_training_corpus_millions
 from ravens_numerical.paths import (
     CHILDES_EXPERIMENTS_MD,
@@ -22,12 +34,7 @@ from ravens_numerical.paths import (
 )
 
 _CHANCE_PCT = 25.0
-
-_BASE_SECTION_RE = re.compile(
-    r"^### (.+)\n"
-    r"- \*\*Overall:\*\* ([0-9.]+)%",
-    re.MULTILINE,
-)
+_TASK_ACC_RE = re.compile(r"([a-z_]+) ([0-9.]+)%")
 _SFT_SECTION_RE = re.compile(
     r"^## `([^`]+)`\s*\n"
     r"- \*\*Overall:\*\* ([0-9.]+)%",
@@ -53,28 +60,87 @@ def load_base_points(path: Path) -> list[tuple[int, float, str]]:
     if not path.is_file():
         raise SystemExit(f"missing base log: {path}")
     text = path.read_text(encoding="utf-8")
-    points: list[tuple[int, float, str]] = []
+    points: dict[int, tuple[float, str]] = {}
+    dump_fill: dict[int, tuple[float, str]] = {}
     for match in _BASE_SECTION_RE.finditer(text):
         model_id = match.group(1).strip()
         words = _words_from_id(model_id)
         if words is None:
             continue
-        points.append((words, float(match.group(2)), model_id))
-    return sorted(points, key=lambda item: item[0])
+        by_task = {
+            task: float(acc) for task, acc in _TASK_ACC_RE.findall(match.group(3))
+        } if match.lastindex and match.lastindex >= 3 else {}
+        if is_complete_eval_tasks(by_task):
+            points[words] = (
+                easy_overall(float(match.group(2)), by_task),
+                model_id,
+            )
+            continue
+        scored = overlay_regular_section(
+            text, match.start(), model_id, float(match.group(2)), by_task
+        )
+        if scored is not None:
+            overall, _ = scored
+            points[words] = (float(overall), model_id)
+            continue
+        dump = dump_regular_scores(model_id)
+        if dump is not None:
+            dump_fill.setdefault(words, (float(dump[0]), model_id))
+    for words, value in dump_fill.items():
+        points.setdefault(words, value)
+    return sorted(
+        [(w, acc, mid) for w, (acc, mid) in points.items()],
+        key=lambda item: item[0],
+    )
 
 
-def load_sft_points(path: Path) -> list[tuple[int, float, str]]:
-    if not path.is_file():
+def load_sft_points(path: Path, text: str | None = None) -> list[tuple[int, float, str]]:
+    if text is None:
+        if not path.is_file():
+            raise SystemExit(f"missing finetuned log: {path}")
+        text = path.read_text(encoding="utf-8")
+    complete: dict[int, tuple[float, str]] = {}
+    other: dict[int, tuple[float, str]] = {}
+    for run_id, logged, by_task, _start in iter_sft_sections(text):
+        words = _words_from_id(run_id)
+        if words is None:
+            continue
+        acc = easy_overall(logged, by_task)
+        bucket = complete if is_complete_sft_run(run_id) else other
+        bucket[words] = (acc, run_id)
+    points = complete or other
+    if points:
+        return sorted(
+            [(w, acc, mid) for w, (acc, mid) in points.items()],
+            key=lambda item: item[0],
+        )
+    # Fallback: combined-log ## `run_id` overall-only sections (no by-task).
+    if not path.is_file() and text is None:
         raise SystemExit(f"missing finetuned log: {path}")
-    text = path.read_text(encoding="utf-8")
-    points: list[tuple[int, float, str]] = []
-    for match in _SFT_SECTION_RE.finditer(text):
+    fallback_text = text if text is not None else path.read_text(encoding="utf-8")
+    dump_fill: dict[int, tuple[float, str]] = {}
+    points2: dict[int, tuple[float, str]] = {}
+    for match in _SFT_SECTION_RE.finditer(fallback_text):
         run_id = match.group(1).strip()
         words = _words_from_id(run_id)
         if words is None:
             continue
-        points.append((words, float(match.group(2)), run_id))
-    return sorted(points, key=lambda item: item[0])
+        scored = overlay_regular_section(
+            fallback_text, match.start(), run_id, float(match.group(2)), {}
+        )
+        if scored is not None:
+            overall, _ = scored
+            points2[words] = (float(overall), run_id)
+            continue
+        dump = dump_regular_scores(run_id)
+        if dump is not None:
+            dump_fill.setdefault(words, (float(dump[0]), run_id))
+    for words, value in dump_fill.items():
+        points2.setdefault(words, value)
+    return sorted(
+        [(w, acc, mid) for w, (acc, mid) in points2.items()],
+        key=lambda item: item[0],
+    )
 
 
 def plot_childes(
@@ -166,7 +232,12 @@ def main() -> None:
     output = args.output or (PLOTS_DIR / "childes_base_vs_sft_scaling.png")
 
     base = load_base_points(args.base_log.resolve())
-    finetuned = load_sft_points(sft_log.resolve())
+    sft_text = (
+        args.sft_log.resolve().read_text(encoding="utf-8")
+        if args.sft_log is not None
+        else sft_eval_text(CHILDES_SFT_ALL_EVALS_MD, ("childes-",))
+    )
+    finetuned = load_sft_points(sft_log.resolve(), text=sft_text)
     if not base and not finetuned:
         raise SystemExit("no CHILDES points found in either log")
 

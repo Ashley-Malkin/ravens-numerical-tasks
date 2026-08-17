@@ -85,6 +85,22 @@ def pseudo_log_likelihood(
     return total
 
 
+def completion_token_span(seq_len: int, completion_len: int) -> tuple[int, int]:
+    """Return ``[start, end)`` over completion tokens in a ``[CLS]…[SEP]`` sequence.
+
+    Layout: ``[CLS] prompt_tokens completion_tokens [SEP]``.
+    ``completion_len`` is the number of completion content tokens (as from
+    ``len(encode(full)) - len(encode(prompt))`` with specials), so the span must
+    exclude both ``[CLS]`` and trailing ``[SEP]``.
+    """
+    if seq_len <= 0 or completion_len <= 0:
+        return 0, 0
+    # Exclude trailing SEP when present (RoBERTa / MiniBERTa).
+    end = seq_len - 1 if seq_len > 1 else seq_len
+    start = max(1, end - completion_len)
+    return start, end
+
+
 def score_completion_span(
     model: Any,
     tokenizer: Any,
@@ -102,14 +118,14 @@ def score_completion_span(
     full_token_len = len(tokenizer.encode(full, add_special_tokens=True))
     completion_len = full_token_len - prompt_token_len
     seq_len = int(input_ids.shape[1])
-    start = max(1, seq_len - completion_len)
+    start, end = completion_token_span(seq_len, completion_len)
     return pseudo_log_likelihood(
         model,
         input_ids,
         attention_mask,
         tokenizer=tokenizer,
         start=start,
-        end=seq_len,
+        end=end,
     )
 
 

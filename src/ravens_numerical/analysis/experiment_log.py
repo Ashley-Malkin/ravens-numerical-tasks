@@ -10,10 +10,13 @@ TASK_TYPE_ORDER = (
     "combine",
     "constancy",
     "constancy_row",
+    "distribution_of_three",
     "intersection",
     "pattern",
     "pattern_tuple",
     "progression",
+    "progression_plus_n",
+    "tuple_grid",
 )
 
 
@@ -57,25 +60,35 @@ def format_experiment_entry(
     model_summaries: dict[str, dict[str, Any]],
     max_tasks: Optional[int] = None,
     accuracy_delta: Optional[float] = None,
-    settings_note: str = "Modal vLLM (`modal_eval.py`); `--n-examples 0`",
+    settings_note: str = "Modal vLLM (`modal_eval.py`)",
     step: int | None = None,
+    n_examples: int | None = None,
 ) -> str:
     """Return a markdown block for one logged experiment run.
 
-    The H2 header includes the UTC run time. When ``step`` is set (checkpoint
-    evals), a separate ``(step=N)`` suffix is appended after the tasks note so
-    parsers that match ``(max_tasks=N)`` keep working.
+    The H2 header includes the UTC run time and ``(n_examples=N)`` when provided.
+    When ``step`` is set (checkpoint evals), a separate ``(step=N)`` suffix is
+    appended after the tasks note so parsers that match ``(max_tasks=N)`` keep
+    working.
     """
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     tasks_note = "all tasks" if max_tasks is None else f"max_tasks={max_tasks}"
     header = f"## {ts} — {run_label} ({tasks_note})"
+    if n_examples is not None:
+        header = f"{header} (n_examples={n_examples})"
     if step is not None:
         header = f"{header} (step={step})"
+
+    # Ensure settings always mention n-examples when we know it (idempotent if
+    # the caller already included the flag).
+    note = settings_note
+    if n_examples is not None and f"--n-examples {n_examples}" not in note:
+        note = f"{note}; `--n-examples {n_examples}`" if note else f"`--n-examples {n_examples}`"
 
     lines = [
         header,
         "",
-        f"_Logged {ts}. {settings_note}_",
+        f"_Logged {ts}. {note}_",
         "",
     ]
     for _key, summary in model_summaries.items():
@@ -101,9 +114,10 @@ def append_experiment_entry(
     model_summaries: dict[str, dict[str, Any]],
     max_tasks: Optional[int] = None,
     accuracy_delta: Optional[float] = None,
-    settings_note: str = "Modal vLLM (`modal_eval.py`); `--n-examples 0`",
+    settings_note: str = "Modal vLLM (`modal_eval.py`)",
     file_preamble: str | None = None,
     step: int | None = None,
+    n_examples: int | None = None,
 ) -> None:
     """Append one experiment entry to an experiments markdown log."""
     experiments_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +134,68 @@ def append_experiment_entry(
         accuracy_delta=accuracy_delta,
         settings_note=settings_note,
         step=step,
+        n_examples=n_examples,
     )
     with experiments_path.open("a", encoding="utf-8") as f:
         f.write(entry)
     print(f"Appended experiment log → {experiments_path}", flush=True)
+
+
+def format_all_sft_evals_md(
+    *,
+    results_by_run_id: dict[str, dict[str, Any]],
+    settings_note: str,
+    max_tasks: Optional[int] = None,
+    n_examples: int | None = None,
+) -> str:
+    """One markdown file: each ``run_id`` heading, then overall / by-task scores."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    tasks_note = "all tasks" if max_tasks is None else f"max_tasks={max_tasks}"
+    note = settings_note
+    if n_examples is not None and f"--n-examples {n_examples}" not in note:
+        note = f"{note}; `--n-examples {n_examples}`" if note else f"`--n-examples {n_examples}`"
+    meta_parts = [note, tasks_note]
+    if n_examples is not None:
+        meta_parts.append(f"n_examples={n_examples}")
+    lines = [
+        "# BabyLM SFT evals (all run_ids)",
+        "",
+        f"_Generated {ts}. {'; '.join(meta_parts)}_",
+        "",
+        "Each section is one Volume checkpoint ``run_id``.",
+        "",
+    ]
+    for run_id in sorted(results_by_run_id):
+        summary = results_by_run_id[run_id]
+        lines.append(f"## `{run_id}`")
+        lines.append(
+            f"- **Overall:** {_pct(summary['accuracy'])} "
+            f"({summary['correct']}/{summary['total']})"
+        )
+        lines.append(
+            f"- **By task:** {_format_task_breakdown(summary['by_task_type'])}"
+        )
+        lines.append("")
+    return "\n".join(lines)
+
+
+def write_all_sft_evals_md(
+    path: Path,
+    *,
+    results_by_run_id: dict[str, dict[str, Any]],
+    settings_note: str,
+    max_tasks: Optional[int] = None,
+    n_examples: int | None = None,
+) -> Path:
+    """Overwrite the combined SFT eval markdown snapshot."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        format_all_sft_evals_md(
+            results_by_run_id=results_by_run_id,
+            settings_note=settings_note,
+            max_tasks=max_tasks,
+            n_examples=n_examples,
+        ),
+        encoding="utf-8",
+    )
+    return path

@@ -1,0 +1,14 @@
+# Default: train and validate on all task types.
+# Test is always the fixed full data/complete.json (never filtered).
+run_name: all_types
+include_types:
+  - constancy
+  - constancy_row
+  - pattern
+  - pattern_tuple
+  - progression
+  - combine
+  - intersection
+  - distribution_of_three
+  - progression_plus_n
+  - tuple_grid
